@@ -84,7 +84,8 @@ const ProjectSchema = new mongoose.Schema({
       status: { type: String, enum: ["Raised", "Resolved"] },
       category: { type: String, enum: ["Frontend","Backend","Deployement","Access","Others"] },
       raisedby:{type:mongoose.Schema.Types.ObjectId,ref:"User"},
-      raisedon:{type:Date,default:null}
+      raisedon:{type:Date,default:null},
+      resolvedon:{type:Date,default:null}
     }
   ],
 

@@ -21,8 +21,8 @@ const UserSchema = new mongoose.Schema({
     },
     phone:{
         type:String,
-        default:"",
         unique:true,
+        sparse:true
     },
     stipend:{
         type:Number,
@@ -90,27 +90,30 @@ profilepicture:{
 },
 Telegram:{
     id:{
-    type:String,
-    unique:true,
-    trim:true
+        type:String,
+        unique:true,
+        trim:true,
+        sparse:true
     },
     snapshot:{
         type:String,
         default:""
     }
 },
+
 topTracker:{
     id:{
-    type:String,
-    unique:true,
-    trim:true,
-    default:""
+        type:String,
+        unique:true,
+        trim:true,
+        sparse:true   // FIXED
     },
     snapshot:{
         type:String,
         default:""
     }
 },
+
 deleted:{
   type:Boolean,
   default:false

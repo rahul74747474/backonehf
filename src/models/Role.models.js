@@ -5,19 +5,17 @@ const RoleSchema = mongoose.Schema({
         type:String,
         enum:["Manager","Employee","Admin","HR","Intern"]
     },
-    permissions:[{
-        type:{
-            type:String,
-            default:""
-        },
-        description:{
+    description:{
             type:String,
             default:"",
             trim:true
-        },
-        permissionname:{
+    },
+    permissions:[{
             type:String,
             default:""
-        }
-    }]
+    }],
+    users:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"User"
+    }
 },{timestamps:true})
