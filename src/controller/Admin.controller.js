@@ -7,6 +7,9 @@ import { Apierror } from "../utils/Apierror.utils.js"
 import { Apiresponse } from "../utils/Apiresponse.utils.js"
 import { Task } from "../models/Task.models.js"
 import { RedFlag } from "../models/MetricsSchema.models.js"
+import { Role } from "../models/Role.models.js"
+import {  Token } from "../models/Tickets.models.js"
+import { Announcement } from "../models/Announcement.models.js"
 
 
 const generateTeamID = () => {
@@ -326,10 +329,278 @@ const deleteTask = asynchandler(async (req, res) => {
     .json(new Apiresponse(200, "Task permanently deleted"));
 });
 
+const createrole = asynchandler(async(req,res)=>{
+  const {rolename,details} = req.body;
+
+  if(!rolename || !details){
+    throw new Apierror(400,"Please fill all the fields")
+  }
+
+  const role = await Role.create({
+    rolename,
+    details
+  })
+
+  res.status(200)
+  .json(new Apiresponse(201,"Role Created Successfully",role))
+})
+
+const getroles = asynchandler(async(req,res)=>{
+  const roles = await Role.find()
+
+  if(!roles){
+    throw new Apierror(400,"No roles Found")
+  }
+
+  res.status(200)
+  .json(new Apiresponse(201,"Roles Fetched Successfully",roles))
+})
+
+const updaterole = asynchandler(async(req,res)=>{
+  const {roleid , rolename , details} = req.body
+
+  if(!rolename || !details || !roleid){
+    throw new Apierror(400,"Please enter all the required Fields")
+  }
+
+  const role = await Role.findById(roleid)
+  if(!role){
+    throw new Apierror(404,"Role not found")
+  }
+
+  if(rolename){role.rolename = rolename}
+  if(details){role.details = details}
+  const updated = await role.save({validateBeforeSave:false})
+
+  res.status(200)
+  .json(new Apiresponse(201,"Role Updated Successfully",updated))
+})
+
+const assignbulkrole = asynchandler(async(req,res)=>{
+  const {role,users} = req.body
+  if(!role || !users){
+    throw new Apierror(400,"Please fill all the required Details")
+  }
+
+  const roles = await Role.findById(role)
+
+  if(!roles){
+    throw new Apierror(400,"Role not Found")
+  }
+
+  roles.users = users
+  await roles.save({validateBeforeSave:false})
+
+  for(let id of users){
+    const user = await User.findById(id)
+
+    if(!user){
+      throw new Apierror(404,"User not found")
+    }
+      user.roleid = role
+    
+
+    await user.save({validateBeforeSave:false})
+  }
+
+  res.status(200)
+  .json(new Apiresponse(201,"Role Assigned Successfully",roles))
+})
+
+const alltickets = asynchandler(async (req, res) => {
+  const tickets = await Token.find();
+
+  if (!tickets) {
+    throw new Apierror(404, "Ticket not found");
+  }
+
+  res.status(200).json(
+    new Apiresponse(
+      200,
+      tickets,                         
+      "Tickets Fetched Successfully"   
+    )
+  );
+});
+const ticketdetail = asynchandler(async(req,res)=>{
+  const {id} = req.body
+
+  if(!id){
+    throw new Apierror(400,"Please fill all the required details")
+  }
+
+  const ticket = await Token.findById(id)
+  if(!ticket){
+    throw new Apierror(404,"Ticket not found")
+  }
+
+  res.status(200)
+  .json(new Apiresponse(201,"Ticket details fetched successfully",ticket))
+})
+
+const updatestatus = asynchandler(async(req,res)=>{
+  const {id , status} = req.body
+
+  if(!id || !status){
+    throw new Apierror(400,"Please fill all the required fields")
+  }
+
+  const ticket = await Token.findById(id)
+  if(!ticket){
+    throw new Apierror(404,"Ticket not found")
+  }
+
+  ticket.status = status
+  ticket.updatedon = Date.now()
+  await ticket.save({validateBeforeSave:false})
+
+  res.status(200)
+  .json(new Apiresponse(201,"Status Updated Successfully",ticket))
+})
+
+const addcomment = asynchandler(async(req,res)=>{
+  const {id,comment} = req.body
+
+  if(!id || !comment){
+    throw new Apierror(400,"Please fill all the required fields")
+  }
+
+  const ticket = await Token.findById(id)
+  if(!ticket){
+    throw new Apierror(404,"Ticket not found")
+  }
+
+ ticket.comments.push({
+  text:comment,
+  by:"Aishwarya G",
+  date:Date.now()
+
+ })
+ if(ticket.status === "Open"){
+  ticket.status = "In Progress"
+ }
+
+ await ticket.save({validateBeforeSave:false})
+
+ res.status(200)
+ .json(new Apiresponse(201,"Comment Added Successfully",ticket))
+
+})
+
+const assignticket = asynchandler(async(req,res)=>{
+    const {id,assignedto} = req.body
+
+  if(!id || !assignedto){
+    throw new Apierror(400,"Please fill all the required fields")
+  }
+  const ticket = await Token.findById(id)
+  if(!ticket){
+    throw new Apierror(404,"Ticket not found")
+  }
+
+  ticket.assignedto = assignedto
+  await ticket.save({validateBeforeSave:false})
+
+  res.status(200)
+ .json(new Apiresponse(201,"Ticket Assigned Successfully",ticket))
+
+})
+
+const normalizeChannels = (channelsObj) => {
+  if (!channelsObj || typeof channelsObj !== "object") return "";
+
+  const out = [];
+  if (channelsObj.banner) out.push("Dashboard Banner");
+  if (channelsObj.email) out.push("Email Notification");
+  if (channelsObj.push) out.push("In-App Push Notification"); 
+  
+  return out;
+};
+
+
+const createAnnouncement = asynchandler(async (req, res) => {
+  const {
+    title,
+    message,
+    priority,
+    channels,
+    audience, 
+    type,
+    selectedPeople = [], 
+    selectedTeams = [], 
+    scheduleAt = null, 
+  } = req.body;
+
+  
+  if (!title || !message || !priority || !channels || !audience || !type) {
+    throw new Apierror(400, "Please fill all the required details");
+  }
+
+  const channelsNormalized = normalizeChannels(channels);
+
+  const audienceObj = {
+    name: audience,
+    includeUsers: [],
+    includeTeams: [],
+  };
+
+  if (audience === "Individual Recipients") {
+    const validUsers = [];
+    for (const uid of selectedPeople || []) {
+      const u = await User.findById(uid);
+      if (u) validUsers.push(u._id);
+    }
+    audienceObj.includeUsers = validUsers;
+  } else if (audience === "Specific Teams") {
+    const validTeams = [];
+    for (const tid of selectedTeams || []) {
+      const r = await Role.findById(tid);
+      if (r) validTeams.push(r._id);
+    }
+    audienceObj.includeTeams = validTeams;
+  } else if(audience==="All Employees"){
+    const validusers =[]
+    const user = await User.find()
+    if(user){
+      for(const u of user){
+        validusers.push(u._id)
+      }
+    }
+    audienceObj.includeUsers = validusers;
+  }
+  const announcement = await Announcement.create({
+    type,
+    title,
+    details: message,
+    audience: audienceObj,
+    priority,
+    channels: channelsNormalized,
+    scheduledby: req.user?.name || "system",
+    scheduledon: scheduleAt ? new Date(scheduleAt) : null,
+    createdon: new Date(),
+    readby: 0,
+  });
+
+  res.status(201)
+  .json(new Apiresponse(201, "Announcement created successfully", announcement));
+});
+
+const getannouncements = asynchandler(async(req,res)=>{
+  const announcement = await Announcement.find()
+
+  if(!announcement){
+    throw new Apierror(400,"Announcement not found")
+  }
+
+  res.status(200)
+  .json(new Apiresponse(201,"Announcements Fetched Successfully",announcement))
+})
 
 
 
 
 
-export {addproject,addemployee,deleteTask,assigntask,updateProject ,projectdetails,alltasks, allprojects,allemployees,redflags}
+
+
+export {addproject,addemployee,getannouncements,assignticket,createAnnouncement,alltickets,addcomment,updatestatus,ticketdetail,getroles,updaterole,assignbulkrole,createrole,deleteTask,assigntask,updateProject ,projectdetails,alltasks, allprojects,allemployees,redflags}
 

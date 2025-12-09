@@ -5,7 +5,7 @@ import { User } from "../models/Employee.models.js";
 import { Metrics } from "../models/MetricsSchema.models.js";
 
 
-cron.schedule("0 0 * * *", async () => {
+cron.schedule("15 1 * * *", async () => {
   console.log("Running Daily Metrics Job...");
 
   const today = new Date().toISOString().split("T")[0];

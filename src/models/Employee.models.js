@@ -8,6 +8,11 @@ const UserSchema = new mongoose.Schema({
         trim:true,
         required:true,
     },
+    roleid:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"Role",
+        default:""
+    },
     email:{
         type:String,
         required:true,
@@ -29,9 +34,19 @@ const UserSchema = new mongoose.Schema({
         default:0,
     },
     designation:{
+        name:{ 
         type:String,
         enum:["Manager","HR","Intern","Admin","Employee"],
         default:"Employee"
+        },
+        Managerid:{
+            type:mongoose.Schema.Types.ObjectId,
+            ref:"Manager"
+        },
+        Hrid:{
+            type:mongoose.Schema.Types.ObjectId,
+            ref:"HR"
+        }
     },
     role:{
         type:String,
@@ -76,10 +91,10 @@ const UserSchema = new mongoose.Schema({
         default: null
     }
 },
-// scores:{
-//    type: mongoose.Schema.Types.ObjectId,
-//    ref:"PerformanceScore",
-// },
+scores:{
+   type: mongoose.Schema.Types.ObjectId,
+   ref:"PerformanceScore",
+},
 lastActiveAt:{
     type:Date,
     default:null
@@ -112,6 +127,30 @@ topTracker:{
         type:String,
         default:""
     }
+},
+ticketsraised:[{
+    type:mongoose.Schema.Types.ObjectId,
+    ref:"Ticket"
+}],
+documents:{
+    aadhar:{
+        type:String,
+        default:""
+    },
+    pan:{
+         type:String,
+         default:""
+    }
+},
+bankdetails:{
+    accountno:{
+        type:Number,
+        default:""
+    },
+    ifsc:{
+        type:String,
+        default:""
+    },
 },
 
 deleted:{
