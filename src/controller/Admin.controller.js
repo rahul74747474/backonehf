@@ -6,10 +6,12 @@ import { asynchandler } from "../utils/Asynchandler.utils.js"
 import { Apierror } from "../utils/Apierror.utils.js"
 import { Apiresponse } from "../utils/Apiresponse.utils.js"
 import { Task } from "../models/Task.models.js"
-import { RedFlag } from "../models/MetricsSchema.models.js"
+import { Metrics, RedFlag } from "../models/MetricsSchema.models.js"
 import { Role } from "../models/Role.models.js"
 import {  Token } from "../models/Tickets.models.js"
 import { Announcement } from "../models/Announcement.models.js"
+import { Attendance } from "../models/Attendance.models.js"
+import { Report } from "../models/Reports.models.js"
 
 
 const generateTeamID = () => {
@@ -219,24 +221,32 @@ const alltasks = asynchandler(async(req,res)=>{
   .json(new Apiresponse(201,"Tasks fetched Successfully",tasks))
 })
 
-const projectdetails= asynchandler(async(req,res)=>{
-  const {id} = req.body
-  
-  if(!id){
-    throw new Apierror(400,"Please enter all Credentials")
+const projectdetails = asynchandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
+    throw new Apierror(400, "Please enter all Credentials");
   }
 
-  const project = await Project.findById(id)
+  console.log("Incoming ID:", id);
 
-  if(!id){
-    throw new Apierror(404,"Project not found")
+  const project = await Project.find()
+
+  const pr = await project.find(p=>p._id.toString() === id)
+
+  if (!pr) {
+    console.log("Project NOT FOUND for:", id);
+    throw new Apierror(404, "Project not found");
   }
 
-  res.status(200)
-  .json(new Apiresponse(201,"Project details Fetched Successfully",project))
+  res.status(200).json(new Apiresponse(
+    200,
+    "Project details fetched successfully",
+    pr
+  ));
+});
 
 
-})
 
 const updateProject = asynchandler(async (req, res) => {
   const {
@@ -596,11 +606,46 @@ const getannouncements = asynchandler(async(req,res)=>{
   .json(new Apiresponse(201,"Announcements Fetched Successfully",announcement))
 })
 
+const getmetricsdata = asynchandler(async(req,res)=>{
+  const metrics = await Metrics.find()
+
+  if(!metrics){
+    throw new Apierror(400,"Metrics not found")
+  }
+
+  res.status(200)
+  .json(new Apiresponse(201,"Metrics fetched Successfully",metrics))
+})
+
+const attendance = asynchandler(async(req,res)=>{
+  const attendance = await Attendance.find()
+
+  if(!attendance){
+    throw new Apiresponse(400,"Attendance not found")
+  }
+
+  res.status(200)
+  .json(new Apiresponse(201,"Attendance fetched Successfully",attendance))
+})
+
+const reports = asynchandler(async(req,res)=>{
+  const report = await Report.find()
+
+  if(!report){
+    throw new Apierror(400,"Reports not Found")
+  }
+
+  res.status(200)
+  .json(new Apiresponse(201,"Report Fetched Successfully",report))
+
+
+})
 
 
 
 
 
 
-export {addproject,addemployee,getannouncements,assignticket,createAnnouncement,alltickets,addcomment,updatestatus,ticketdetail,getroles,updaterole,assignbulkrole,createrole,deleteTask,assigntask,updateProject ,projectdetails,alltasks, allprojects,allemployees,redflags}
+
+export {addproject,addemployee,reports,attendance,getmetricsdata,getannouncements,assignticket,createAnnouncement,alltickets,addcomment,updatestatus,ticketdetail,getroles,updaterole,assignbulkrole,createrole,deleteTask,assigntask,updateProject ,projectdetails,alltasks, allprojects,allemployees,redflags}
 

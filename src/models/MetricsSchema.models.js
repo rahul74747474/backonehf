@@ -32,10 +32,26 @@ export const Metrics = new mongoose.model("Metrics",MetricsSchema)
 
 const RedFlagSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  type: String,     
-  severity: String,
-  date: String
+
+  type: {
+    type: [String],
+    default: []
+  },
+
+  severity: {
+    type: String,
+    enum: ["low", "medium", "high"],
+    default: "low"
+  },
+
+  reason: {
+    type: [String], 
+    default: []
+  },
+
+  date: String,
 });
+
 export const RedFlag = mongoose.model("RedFlag", RedFlagSchema);
 
 const SLASchema = new mongoose.Schema({

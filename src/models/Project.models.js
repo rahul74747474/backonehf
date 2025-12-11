@@ -88,6 +88,10 @@ const ProjectSchema = new mongoose.Schema({
       resolvedon:{type:Date,default:null}
     }
   ],
+  budget:{
+    type:Number,
+    default:0
+  },
 
   deleted: {
     type: Boolean,

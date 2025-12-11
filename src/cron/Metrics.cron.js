@@ -4,37 +4,31 @@ import { Report } from "../models/Reports.models.js";
 import { User } from "../models/Employee.models.js";
 import { Metrics } from "../models/MetricsSchema.models.js";
 
-
-cron.schedule("15 1 * * *", async () => {
+cron.schedule("0 0 * * *", async () => {
   console.log("Running Daily Metrics Job...");
 
-  const today = new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
 
   const tasksCompleted = await Task.countDocuments({
     status: "Completed",
-    completedAt: {
-      $gte: new Date(today + "T00:00:00.000Z"),
-      $lte: new Date(today + "T23:59:59.999Z")
-    }
+    completedAt: { $gte: last24Hours, $lte: now }
   });
 
   const reportsSubmitted = await Report.countDocuments({
-    date: {
-      $gte: new Date(today + "T00:00:00.000Z"),
-      $lte: new Date(today + "T23:59:59.999Z")
-    }
+    date: { $gte: last24Hours, $lte: now }
   });
 
   const activeUsers = await User.countDocuments({
-    lastActiveAt: { $gte: new Date(today + "T00:00:00.000Z") }
+    lastActiveAt: { $gte: last24Hours }
   });
 
   await Metrics.create({
-    date: today,
+    date: now, 
     tasksCompleted,
     reportsSubmitted,
     activeUsers
   });
 
-  console.log(`Metrics recorded for ${today}`);
+  console.log("Metrics recorded for last 24 hours");
 });

@@ -29,7 +29,7 @@ const UserSchema = new mongoose.Schema({
         unique:true,
         sparse:true
     },
-    stipend:{
+    salary:{
         type:Number,
         default:0,
     },

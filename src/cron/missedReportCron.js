@@ -1,48 +1,48 @@
 import cron from "node-cron";
-import { RedFlag } from "../models/MetricsSchema.models.js";
 import { User } from "../models/Employee.models.js";
 import { Report } from "../models/Reports.models.js";
+import { addOrUpdateRedFlag } from "./addRedFlags.js";
 
-cron.schedule("15 1 * * *", async () => {
+cron.schedule("10 0 * * *", async () => {
+  console.log("Missed Report CRON Running...");
 
   const users = await User.find();
-
   const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
 
   for (const user of users) {
+    let missed = 0;
 
-    let missedCount = 0;
-
-    // Check last 3 days: day -1, day -2, day -3
+    // Check previous 3 days
     for (let i = 1; i <= 3; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() - i);
 
-      const dateString = date.toISOString().split("T")[0];
+      const start = new Date(checkDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(checkDate);
+      end.setHours(23, 59, 59, 999);
 
       const report = await Report.findOne({
         user: user._id,
-        date: {
-          $gte: new Date(`${dateString}T00:00:00.000Z`),
-          $lte: new Date(`${dateString}T23:59:59.999Z`)
-        }
+        date: { $gte: start, $lte: end }
       });
 
-      if (!report) missedCount++;
+      if (!report) missed++;
     }
 
-    // If missed 3 consecutive days
-    if (missedCount === 3) {
-      await RedFlag.create({
+    // If user missed last 3 days → red flag
+    if (missed === 3) {
+      await addOrUpdateRedFlag({
         userId: user._id,
         type: "Missed Report",
         severity: "high",
-        date: today.toISOString().split("T")[0],
-        reason: "Missed 3 consecutive daily reports"
+        reason: "Missed 3 consecutive daily reports",
+        date: todayStr
       });
     }
-
   }
 
-  console.log("Missed-report check completed.");
+  console.log("Missed Report CRON Completed");
 });

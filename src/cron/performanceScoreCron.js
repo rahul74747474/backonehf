@@ -1,9 +1,11 @@
 import { User } from "../models/Employee.models.js";
-import { RedFlag } from "../models/MetricsSchema.models.js";
+
 import { PerformanceScore } from "../models/PerformanceScore.models.js";
 import cron from "node-cron";
 import { Task } from "../models/Task.models.js";
 import { Report } from "../models/Reports.models.js";
+import { addOrUpdateRedFlag } from "./addRedFlags.js";
+import { Attendance } from "../models/Attendance.models.js";
 
 cron.schedule("55 23 * * *", async () => {
   console.log("Calculating daily performance...");
@@ -32,7 +34,7 @@ cron.schedule("55 23 * * *", async () => {
     const reportScore = submittedReport ? 20 : 0;
 
     const present = await Attendance.findOne({
-      userId: user._id,
+      user: user._id,
       date: today,
       status: "Present"
     });
@@ -57,14 +59,15 @@ cron.schedule("55 23 * * *", async () => {
       managerScore +
       hrReview;
 
-    if (totalScore < 60) {
-  await RedFlag.create({
-    userId: user._id,
-    type: "Performance Drop",
-    severity: totalScore > 40 ? "Medium": totalScore<20 ? "Urgent":"High",
-    date: today
-  });
-}
+   if (totalScore < 50) {
+      await addOrUpdateRedFlag({
+        userId: user._id,
+        type: "Low Performance",
+        severity: "medium",
+        reason: `Performance dropped to ${user.performanceScore}`,
+        date: today
+      });
+    }
 
 
     await PerformanceScore.create({
