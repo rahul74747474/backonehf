@@ -5,7 +5,7 @@ import CookieParser from "cookie-parser"
 const app = express()
 
 app.use(cors({
-   origin:"http://localhost:3000",
+   origin:"https://prismportal.netlify.app",
    credentials:true
 }))
 
