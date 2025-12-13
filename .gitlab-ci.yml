@@ -1,13 +1,43 @@
-image: node:18
-
 stages:
+  - build
   - deploy
+
+variables:
+  GIT_STRATEGY: fetch
+
+cache:
+  paths:
+    - node_modules/
+
+before_script:
+  - node -v
+  - npm -v
+
+build:
+  stage: build
+  image: node:18
+  script:
+    - npm ci
+    - npm run build || echo "no build step"
+  artifacts:
+    paths:
+      - node_modules/
+  only:
+    - main
 
 deploy_to_heroku:
   stage: deploy
+  image: alpine:latest
+  before_script:
+    # install git and openssh and curl
+    - apk add --no-cache git bash curl openssh
+  script:
+    - git config --global user.email "$HEROKU_EMAIL"
+    - git config --global user.name "GitLab CI"
+    # add heroku remote using API key (push over HTTPS)
+    - git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/$HEROKU_APP_NAME.git
+    # ensure current commit is present (CI does a shallow fetch sometimes)
+    - git fetch --unshallow || true
+    - git push -f heroku HEAD:refs/heads/main
   only:
     - main
-  script:
-    - npm install
-    - git remote add heroku https://heroku:$HEROKU_API_KEY@git.heroku.com/$HEROKU_APP_NAME.git
-    - git push heroku main --force
