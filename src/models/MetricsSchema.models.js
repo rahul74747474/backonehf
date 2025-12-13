@@ -58,7 +58,8 @@ const SLASchema = new mongoose.Schema({
   date: String,
   onTime: Number,
   overdue: Number,
-  slaPercentage: Number
+  slaPercentage: Number,
+  type:String
 });
 export const SLA = mongoose.model("SLA", SLASchema);
 

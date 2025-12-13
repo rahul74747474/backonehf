@@ -6,6 +6,8 @@ import { Task } from "../models/Task.models.js";
 import { Report } from "../models/Reports.models.js";
 import { addOrUpdateRedFlag } from "./addRedFlags.js";
 import { Attendance } from "../models/Attendance.models.js";
+import { Feedback } from "../models/Feedback.models.js";
+import { Review } from "../models/Review.models.js";
 
 cron.schedule("55 23 * * *", async () => {
   console.log("Calculating daily performance...");
@@ -23,7 +25,7 @@ cron.schedule("55 23 * * *", async () => {
       completedAt: { $gte: new Date(today) }
     });
 
-    const taskScore = totalTasks === 0 ? 30 : (completedToday / totalTasks) * 30;
+    const taskScore = totalTasks === 0 ? 0 : (completedToday / totalTasks) * 100;
 
 
     const submittedReport = await Report.findOne({

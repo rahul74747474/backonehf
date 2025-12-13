@@ -1,5 +1,5 @@
 import {Router} from "express"
-import { addcomment, addemployee, addproject, allemployees, allprojects, alltasks, alltickets, assignbulkrole, assigntask, assignticket, attendance, createAnnouncement, createrole, deleteTask, getannouncements, getmetricsdata, getroles, projectdetails, redflags, reports, ticketdetail, updateProject, updaterole, updatestatus } from "../controller/Admin.controller.js"
+import { addcomment, addemployee, addproject, allemployees, allprojects, alltasks, alltickets, assignbulkrole, assigntask, assignticket, attendance, createAnnouncement, createrole, deleteTask, getannouncements, getmetricsdata, getroles, projectdetails, redflags, reports, scores, sla, ticketdetail, updateProject, updaterole, updatestatus } from "../controller/Admin.controller.js"
 
 const adminrouter = Router()
 
@@ -31,6 +31,8 @@ adminrouter.route("/getannouncements").get(getannouncements)
 adminrouter.route("/getmetrics").get(getmetricsdata)
 adminrouter.route("/getattendance").get(attendance)
 adminrouter.route("/getreports").get(reports)
+adminrouter.route("/getsla").get(sla)
+adminrouter.route("/getscores").get(scores)
 //delete apis
 adminrouter.route("/deletetask/:id").delete(deleteTask)
 

@@ -6,12 +6,13 @@ import { asynchandler } from "../utils/Asynchandler.utils.js"
 import { Apierror } from "../utils/Apierror.utils.js"
 import { Apiresponse } from "../utils/Apiresponse.utils.js"
 import { Task } from "../models/Task.models.js"
-import { Metrics, RedFlag } from "../models/MetricsSchema.models.js"
+import { Metrics, RedFlag, SLA } from "../models/MetricsSchema.models.js"
 import { Role } from "../models/Role.models.js"
 import {  Token } from "../models/Tickets.models.js"
 import { Announcement } from "../models/Announcement.models.js"
 import { Attendance } from "../models/Attendance.models.js"
 import { Report } from "../models/Reports.models.js"
+import { PerformanceScore } from "../models/PerformanceScore.models.js"
 
 
 const generateTeamID = () => {
@@ -401,8 +402,10 @@ const assignbulkrole = asynchandler(async(req,res)=>{
   roles.users = users
   await roles.save({validateBeforeSave:false})
 
+  const employees = await User.find()
+
   for(let id of users){
-    const user = await User.findById(id)
+    const user = employees.find(e => e._id.toString() === id)
 
     if(!user){
       throw new Apierror(404,"User not found")
@@ -641,11 +644,32 @@ const reports = asynchandler(async(req,res)=>{
 
 })
 
+const sla = asynchandler(async(req,res)=>{
+  const sla = await SLA.find()
+
+  if(!sla){
+    throw new Apierror(404,"SLA not found")
+  }
+ 
+  res.status(200)
+  .json( new Apiresponse(201,"SLA Fetched Successfully",sla))
+})
+
+const scores = asynchandler(async(req,res)=>{
+  const scores = await PerformanceScore.find()
+
+  if(!scores){
+    throw new Apierror(404,"Scores not Found")
+  }
+
+  res.status(200)
+  .json(new Apiresponse(201,"Scores fetched Successfully",scores))
+})
 
 
 
 
 
 
-export {addproject,addemployee,reports,attendance,getmetricsdata,getannouncements,assignticket,createAnnouncement,alltickets,addcomment,updatestatus,ticketdetail,getroles,updaterole,assignbulkrole,createrole,deleteTask,assigntask,updateProject ,projectdetails,alltasks, allprojects,allemployees,redflags}
+export {addproject,addemployee,scores,reports,sla,attendance,getmetricsdata,getannouncements,assignticket,createAnnouncement,alltickets,addcomment,updatestatus,ticketdetail,getroles,updaterole,assignbulkrole,createrole,deleteTask,assigntask,updateProject ,projectdetails,alltasks, allprojects,allemployees,redflags}
 

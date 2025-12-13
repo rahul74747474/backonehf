@@ -18,7 +18,7 @@ const ProjectSchema = new mongoose.Schema({
 
   projectCode: {
     type: String,
-    unique: true
+   default:""
   },
 
   manager: {

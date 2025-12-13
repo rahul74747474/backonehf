@@ -11,7 +11,7 @@ const UserSchema = new mongoose.Schema({
     roleid:{
         type:mongoose.Schema.Types.ObjectId,
         ref:"Role",
-        default:""
+        default:null
     },
     email:{
         type:String,
