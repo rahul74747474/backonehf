@@ -8,6 +8,10 @@ const UserSchema = new mongoose.Schema({
         trim:true,
         required:true,
     },
+    empid:{
+      type:String,
+      unique:true,
+    },
     roleid:{
         type:mongoose.Schema.Types.ObjectId,
         ref:"Role",
@@ -41,11 +45,13 @@ const UserSchema = new mongoose.Schema({
         },
         Managerid:{
             type:mongoose.Schema.Types.ObjectId,
-            ref:"Manager"
+            ref:"Manager",
+            default:""
         },
         Hrid:{
             type:mongoose.Schema.Types.ObjectId,
-            ref:"HR"
+            ref:"HR",
+            default:""
         }
     },
     role:{

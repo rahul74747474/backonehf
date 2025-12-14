@@ -25,7 +25,7 @@ cron.schedule("55 23 * * *", async () => {
       completedAt: { $gte: new Date(today) }
     });
 
-    const taskScore = totalTasks === 0 ? 0 : (completedToday / totalTasks) * 100;
+    const taskScore = totalTasks === 0 ? 0 : (completedToday / totalTasks) * 50;
 
 
     const submittedReport = await Report.findOne({

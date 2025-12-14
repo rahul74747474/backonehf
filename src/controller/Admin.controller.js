@@ -23,28 +23,33 @@ const generateTeamID = () => {
 
 const addemployee = asynchandler(async(req,res)=>{
     try {
-        const {empid,email,name,password,designation,status,role} = req.body
+        const {email,name,password,designation,status,role} = req.body
         
         
         if(!email || !name || !password ||!designation ||!status ||!role){
             throw new Apierror(400,"Please Enter all the Requires Fields")
         }
+
+        const empid = email.split("@")[0]
          
         
         const existinguser = await User.findOne({
-            $or:[{email}]
+            $or:[{email ,empid}]
         })
     
         if(existinguser){
-            throw new Apierror(409,"Employee with this crdentials already exists")
+            throw new Apierror(409,"Employee with this credentials already exists")
         }
         
         
         const user = await User.create({
+          empid,
           name,
           email,
           password,
-          designation,
+         designation:{
+          name:designation
+         },
           status,
           role,
         })
@@ -69,7 +74,7 @@ const addemployee = asynchandler(async(req,res)=>{
 Your account on the Job Portal has been created successfully. 
 Below are your login credentials:
 
-Employee ID: ${user._id}
+Employee ID: ${empid}
 Password: ${password}
 
 Please log in and update your details as soon as possible.
