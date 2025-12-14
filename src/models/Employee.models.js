@@ -46,12 +46,12 @@ const UserSchema = new mongoose.Schema({
         Managerid:{
             type:mongoose.Schema.Types.ObjectId,
             ref:"Manager",
-            default:""
+
         },
         Hrid:{
             type:mongoose.Schema.Types.ObjectId,
             ref:"HR",
-            default:""
+            
         }
     },
     role:{
