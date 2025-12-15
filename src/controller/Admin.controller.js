@@ -20,13 +20,64 @@ const generateTeamID = () => {
   return `P00${random}`;
 };
 
+const transporter = nodemailer.createTransport({
+  host: "gvam1102.siteground.biz",
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+
+const sendAnnouncementEmails = async ({ users, title, message, type }) => {
+  for (const emp of users) {
+    if (!emp?.email) continue;
+
+    const mailOptions = {
+      from: process.env.SMTP_USER,
+      to: emp.email,
+      subject: `📢 ${type} Announcement: ${title}`,
+      text: announcementMailTemplate({
+        name: emp.name,
+        title,
+        message,
+        type,
+      }),
+    };
+
+    await transporter.sendMail(mailOptions);
+  }
+};
+
+const announcementMailTemplate = ({ name, title, message, type }) => {
+  return `
+Hello ${name || "Team"},
+
+📢 New Announcement (${type})
+
+Title:
+${title}
+
+Message:
+${message}
+
+Please check the portal for more details.
+
+Regards,
+Humanity Founders
+`;
+};
+
+
 
 const addemployee = asynchandler(async(req,res)=>{
     try {
-        const {email,name,password,designation,status,role} = req.body
+        const {email,name,password,dob,gender} = req.body
         
         
-        if(!email || !name || !password ||!designation ||!status ||!role){
+        if(!email || !name || !password ||!dob ||!gender){
             throw new Apierror(400,"Please Enter all the Requires Fields")
         }
 
@@ -47,11 +98,9 @@ const addemployee = asynchandler(async(req,res)=>{
           name,
           email,
           password,
-         designation:{
-          name:designation
-         },
-          status,
-          role,
+          status:"Onboarding",
+          dob,
+          gender,
         })
         
 
@@ -93,6 +142,28 @@ Humanity Founders | HR Team
         console.log("Error",error.message)
     }
 
+})
+const updateemployee = asynchandler(async(req,res)=>{
+  const {id} = req.body
+  const {manager,onboardingstatus,role,status}=req.body
+  if(!id){
+    throw new Apierror(400,"Please provide the user id")
+  }
+
+  const user = await User.findById(id)
+  if(!user){
+    throw new Apierror(404,"User not found ")
+  }
+
+  if(status)user.status = status
+  if(onboardingstatus) user.onboarding.status = onboardingstatus
+  if(manager)user.managerAssigned = manager
+  if(role)user.role=role
+
+  const empl = await user.save({validateBeforeSave:false})
+
+  res.status(200)
+  .json(new Apiresponse(201,"User Updated Successgfully",empl))
 })
 
 const assigntask = asynchandler(async (req, res) => {
@@ -187,6 +258,33 @@ const addproject = asynchandler(async (req, res) => {
     new Apiresponse(201, "Project created successfully", project)
   );
 });
+
+const createissue = asynchandler(async(req,res)=>{
+  const {id,title,details,category,severity}=req.body
+
+  if(!id||!title||!details||!category||!severity){
+    throw new Apierror(400,"Please fill all the required fields")
+  }
+
+  const project = await Project.findById(id)
+  if(!project){
+    throw new Apierror(404,"Project not found")
+  }
+
+  project.risks.push({
+    title:title,
+    details:details,
+    category:category,
+    severity:severity,
+    status:"Raised",
+    raisedon:Date.now(),
+    raisedby: project.team.assignedMembers[0]._id
+})
+const newproject = await project.save({validateBeforeSave:false})
+res.status(200)
+.json(new Apiresponse(201,"Risks Added Successfully".newproject))
+   
+})
 
 const allprojects = asynchandler(async(req,res)=>{
   const projects =await Project.find();
@@ -372,25 +470,46 @@ const getroles = asynchandler(async(req,res)=>{
   .json(new Apiresponse(201,"Roles Fetched Successfully",roles))
 })
 
-const updaterole = asynchandler(async(req,res)=>{
-  const {roleid , rolename , details} = req.body
+const updaterole = asynchandler(async (req, res) => {
+  const { roleid, rolename, details, users } = req.body;
 
-  if(!rolename || !details || !roleid){
-    throw new Apierror(400,"Please enter all the required Fields")
+  const role = await Role.findById(roleid);
+  if (!role) {
+    throw new Apierror(404, "Role not found");
   }
 
-  const role = await Role.findById(roleid)
-  if(!role){
-    throw new Apierror(404,"Role not found")
+  if (rolename) role.rolename = rolename;
+  if (details) role.details = details;
+
+
+  const currentUsers = await User.find({ roleid });
+
+  const selectedUserIds = users || [];
+  for (let user of currentUsers) {
+    if (!selectedUserIds.includes(user._id.toString())) {
+      user.roleid = null;
+      user.designation.name = "";
+      await user.save({ validateBeforeSave: false });
+    }
   }
 
-  if(rolename){role.rolename = rolename}
-  if(details){role.details = details}
-  const updated = await role.save({validateBeforeSave:false})
+  for (let userId of selectedUserIds) {
+    const user = await User.findById(userId);
+    if (user) {
+      user.roleid = roleid;
+      user.designation.name = rolename;
+      await user.save({ validateBeforeSave: false });
+    }
+  }
+  role.users = selectedUserIds
 
-  res.status(200)
-  .json(new Apiresponse(201,"Role Updated Successfully",updated))
-})
+  const updatedRole = await role.save({ validateBeforeSave: false });
+
+  res.status(200).json(
+    new Apiresponse(200, "Role Updated Successfully", updatedRole)
+  );
+});
+
 
 const assignbulkrole = asynchandler(async(req,res)=>{
   const {role,users} = req.body
@@ -416,6 +535,7 @@ const assignbulkrole = asynchandler(async(req,res)=>{
       throw new Apierror(404,"User not found")
     }
       user.roleid = role
+      user.designation.name = roles.rolename
     
 
     await user.save({validateBeforeSave:false})
@@ -454,6 +574,18 @@ const ticketdetail = asynchandler(async(req,res)=>{
 
   res.status(200)
   .json(new Apiresponse(201,"Ticket details fetched successfully",ticket))
+})
+
+const deleterole= asynchandler(async(req,res)=>{
+  const {id} = req.params
+
+  if(!id){
+    throw new Apierror("Please fill all the required Fields")
+  }
+  const deleted = await Role.findByIdAndDelete(id)
+
+  res.status(200)
+  .json(new Apiresponse(201,"Role deleted Successfully",deleted))
 })
 
 const updatestatus = asynchandler(async(req,res)=>{
@@ -524,16 +656,38 @@ const assignticket = asynchandler(async(req,res)=>{
 
 })
 
+const createticket = asynchandler(async(req,res)=>{
+  const{title , category , priority , details} = req.body
+
+  if(!title || !category ||!priority ||!details){
+    throw new Apierror(400,"Please fill all the required Details")
+  }
+
+ const ticket = await Token.create({
+    title,
+    category,
+    priority,
+    details,
+    status : "Open",
+    raisedbY:"Aishwarya G",
+    raisedon:Date.now()
+  })
+
+  res.status(200)
+  .json(new Apiresponse(201,"Ticket Created Successfully",ticket))
+})
+
 const normalizeChannels = (channelsObj) => {
-  if (!channelsObj || typeof channelsObj !== "object") return "";
+  if (!channelsObj || typeof channelsObj !== "object") return [];
 
   const out = [];
   if (channelsObj.banner) out.push("Dashboard Banner");
   if (channelsObj.email) out.push("Email Notification");
-  if (channelsObj.push) out.push("In-App Push Notification"); 
-  
+  if (channelsObj.push) out.push("In-App Push Notification");
+
   return out;
 };
+
 
 
 const createAnnouncement = asynchandler(async (req, res) => {
@@ -562,29 +716,38 @@ const createAnnouncement = asynchandler(async (req, res) => {
     includeTeams: [],
   };
 
-  if (audience === "Individual Recipients") {
-    const validUsers = [];
-    for (const uid of selectedPeople || []) {
-      const u = await User.findById(uid);
-      if (u) validUsers.push(u._id);
-    }
-    audienceObj.includeUsers = validUsers;
-  } else if (audience === "Specific Teams") {
-    const validTeams = [];
-    for (const tid of selectedTeams || []) {
-      const r = await Role.findById(tid);
-      if (r) validTeams.push(r._id);
-    }
-    audienceObj.includeTeams = validTeams;
-  } else if(audience==="All Employees"){
-    const validusers =[]
-    const user = await User.find()
-    if(user){
-      for(const u of user){
-        validusers.push(u._id)
-      }
-    }
-    audienceObj.includeUsers = validusers;
+  let finalUsers = [];
+
+// 👤 Individual Users
+if (audience === "Individual Recipients") {
+  finalUsers = await User.find({ _id: { $in: selectedPeople } });
+  audienceObj.includeUsers = finalUsers.map(u => u._id);
+}
+
+// 👥 Teams
+else if (audience === "Specific Teams") {
+  audienceObj.includeTeams = selectedTeams;
+
+  finalUsers = await User.find({
+    roleid: { $in: selectedTeams }
+  });
+
+  audienceObj.includeUsers = finalUsers.map(u => u._id);
+}
+
+// 🏢 All Employees
+else if (audience === "All Employees") {
+  finalUsers = await User.find({});
+  audienceObj.includeUsers = finalUsers.map(u => u._id);
+}
+
+  if (channelsNormalized.includes("Email Notification")) {
+    await sendAnnouncementEmails({
+      users: finalUsers,
+      title,
+      message,
+      type,
+    });
   }
   const announcement = await Announcement.create({
     type,
@@ -676,5 +839,6 @@ const scores = asynchandler(async(req,res)=>{
 
 
 
-export {addproject,addemployee,scores,reports,sla,attendance,getmetricsdata,getannouncements,assignticket,createAnnouncement,alltickets,addcomment,updatestatus,ticketdetail,getroles,updaterole,assignbulkrole,createrole,deleteTask,assigntask,updateProject ,projectdetails,alltasks, allprojects,allemployees,redflags}
+export {addproject,createissue,createticket,addemployee,updateemployee,scores,reports,sla,deleterole,attendance,getmetricsdata,getannouncements,assignticket,createAnnouncement,alltickets,addcomment,updatestatus,ticketdetail,getroles,updaterole,assignbulkrole,createrole,deleteTask,assigntask,updateProject ,projectdetails,alltasks, allprojects,allemployees,redflags}
 
+ 

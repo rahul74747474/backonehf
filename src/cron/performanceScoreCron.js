@@ -6,10 +6,10 @@ import { Task } from "../models/Task.models.js";
 import { Report } from "../models/Reports.models.js";
 import { addOrUpdateRedFlag } from "./addRedFlags.js";
 import { Attendance } from "../models/Attendance.models.js";
-import { Feedback } from "../models/Feedback.models.js";
-import { Review } from "../models/Review.models.js";
+// import { Feedback } from "../models/Feedback.models.js";
+// import { Review } from "../models/Review.models.js";
 
-cron.schedule("55 23 * * *", async () => {
+cron.schedule("30 1 * * *", async () => {
   console.log("Calculating daily performance...");
 
   const users = await User.find();
@@ -44,22 +44,22 @@ cron.schedule("55 23 * * *", async () => {
     const attendanceScore = present ? 20 : 0;
 
 
-    const peerFeedback = await Feedback.findOne({ user: user._id });
-    const peerScore = peerFeedback ? peerFeedback.peerRating : 0; // 0-10
+    // const peerFeedback = await Feedback.findOne({ user: user._id });
+    // const peerScore = peerFeedback ? peerFeedback.peerRating : 0; // 0-10
 
-    const managerReview = await Review.findOne({ user: user._id });
-    const managerScore = managerReview ? managerReview.managerRating : 0; // 0-15
+    // const managerReview = await Review.findOne({ user: user._id });
+    // const managerScore = managerReview ? managerReview.managerRating : 0; // 0-15
 
-    const hrReview = managerReview ? managerReview.hrRating : 0; // 0–5
+    // const hrReview = managerReview ? managerReview.hrRating : 0; // 0–5
 
 
     const totalScore =
       taskScore +
       reportScore +
-      attendanceScore +
-      peerScore +
-      managerScore +
-      hrReview;
+      attendanceScore ;
+      // peerScore +
+      // managerScore +
+      // hrReview;
 
    if (totalScore < 50) {
       await addOrUpdateRedFlag({
@@ -79,9 +79,9 @@ cron.schedule("55 23 * * *", async () => {
         tasks: taskScore,
         reports: reportScore,
         attendance: attendanceScore,
-        peer: peerScore,
-        manager: managerScore,
-        hr: hrScore,
+        peer: 0,
+        manager: 0,
+        hr: 0,
       },
       totalScore,
     });

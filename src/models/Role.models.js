@@ -19,6 +19,10 @@ const RoleSchema = mongoose.Schema({
         ref:"User"
     }],
     permissionupdation:[{
+        previouspermissions:[{
+           type:String,
+            default:""
+        }],
         updatedby:{
             type:mongoose.Schema.Types.ObjectId,
             ref:"User"

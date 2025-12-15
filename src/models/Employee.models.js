@@ -28,14 +28,30 @@ const UserSchema = new mongoose.Schema({
         type:String,
         required:true,
     },
+    dob:{
+        type:Date,
+        default:""
+    },
+    gender:{
+        type:String,
+        default:""
+    },
+
     phone:{
         type:String,
         unique:true,
         sparse:true
     },
     salary:{
-        type:Number,
+        amount:{
+           type:Number,
         default:0,
+        },
+        paymentstatus:{
+            type:String,
+            enum:["Completed","Pending","In Progess"]
+        }
+       
     },
     designation:{
         name:{ 
@@ -56,7 +72,8 @@ const UserSchema = new mongoose.Schema({
     },
     role:{
         type:String,
-        required:true,
+        enum:["Frontend Developer","Backend Developer","Full Stack Developer","QA","UI/UX Designer","Devops"],
+        default:null
     },
     status:{
         type:String,

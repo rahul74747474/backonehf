@@ -80,6 +80,7 @@ const ProjectSchema = new mongoose.Schema({
   risks: [
     {
       title: { type: String, default: "" },
+      details: { type: String, default: "" },
       severity: { type: String, enum: ["Low", "Medium", "High","Critical"] },
       status: { type: String, enum: ["Raised", "Resolved"] },
       category: { type: String, enum: ["Frontend","Backend","Deployement","Access","Others"] },
