@@ -6,12 +6,11 @@ import { app } from "./app.js"
 dotenv.config({
     path:"./env"
 })
-const PORT = process.env.PORT || 5000
 
 connectdb()
 .then(()=>{
     app.listen(PORT ,()=>{
-      console.log(`App is listening on PORT ${PORT}`)
+      console.log(`App is listening on PORT ${process.env.PORT}`)
     })
 }).catch((error)=>{
     console.log("Something Went Wrong",error.message)
