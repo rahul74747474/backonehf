@@ -281,7 +281,7 @@ const addemployee = asynchandler(async(req,res)=>{
         })
     
         if(existinguser){
-            throw new Apierror(409,"Employee with this credentials already exists")
+            throw new Apierror(409,"Employee with this credentials already exist")
         }
         
         
