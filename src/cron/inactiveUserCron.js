@@ -3,7 +3,7 @@ import { RedFlag } from "../models/MetricsSchema.models.js";
 import { User } from "../models/Employee.models.js";
 import { addOrUpdateRedFlag } from "./addRedFlags.js";
 
-cron.schedule("25 1 * * *", async () => {
+cron.schedule("05 3 * * *", async () => {
   const users = await User.find();
   const today = new Date().toISOString().split("T")[0];
 

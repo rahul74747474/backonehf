@@ -9,7 +9,7 @@ import { Attendance } from "../models/Attendance.models.js";
 // import { Feedback } from "../models/Feedback.models.js";
 // import { Review } from "../models/Review.models.js";
 
-cron.schedule("42 17 * * *", async () => {
+cron.schedule("05 3 * * *", async () => {
   console.log("Calculating daily performance...");
 
   const users = await User.find();

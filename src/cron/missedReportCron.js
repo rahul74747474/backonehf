@@ -3,7 +3,7 @@ import { User } from "../models/Employee.models.js";
 import { Report } from "../models/Reports.models.js";
 import { addOrUpdateRedFlag } from "./addRedFlags.js";
 
-cron.schedule("25 1 * * *", async () => {
+cron.schedule("05 3 * * *", async () => {
   console.log("Missed Report CRON Running...");
 
   const users = await User.find();
