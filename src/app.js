@@ -22,8 +22,10 @@ app.use("/uploads", express.static("uploads"));
 
 //route
 import { adminrouter } from "./routes/Admin.routes.js"
+import { employeerouter } from "./routes/Employee.routes.js"
 
 
 app.use("/api/v1/admin",adminrouter)
+app.use("/api/v1/employee",employeerouter)
 
 export {app}

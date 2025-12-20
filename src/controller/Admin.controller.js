@@ -559,7 +559,7 @@ const adminlogin = asynchandler(async(req,res)=>{
     httpOnly:true,
     secure:true,
     sameSite:"None",
-    maxAge:777600
+    maxAge:9*60*60*1000
   }
 
   res.status(200)
@@ -611,7 +611,8 @@ const logout = asynchandler(async(req,res)=>{
     const options = {
   httpOnly: true,
   secure: true,    
-  sameSite:"None" 
+  sameSite:"None" ,
+  maxAge:9*60*60*1000,
 }
    return  res.status(200)
     .clearCookie("token",options)

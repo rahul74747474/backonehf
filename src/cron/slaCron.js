@@ -4,7 +4,7 @@ import { SLA } from "../models/MetricsSchema.models.js";
 
 
 
-cron.schedule("05 3 * * *", async () => {
+cron.schedule("00 0 * * *", async () => {
   const today = new Date().toISOString().split("T")[0];
 
   const tasks = await Task.find();
