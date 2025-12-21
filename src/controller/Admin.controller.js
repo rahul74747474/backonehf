@@ -1193,7 +1193,9 @@ const createAnnouncement = asynchandler(async (req, res) => {
     selectedTeams = [], 
     scheduleAt = null, 
   } = req.body;
-  const user = req.user
+  const employee = req.user
+
+const user = await User.findById(employee._id)
 
   if(!user){
     throw new Apierror(400,"User not Authorized")
@@ -1252,7 +1254,7 @@ else if (audience === "All Employees") {
     audience: audienceObj,
     priority,
     channels: channelsNormalized,
-    scheduledby: user?.name || "system",
+    scheduledby: user.name || "system",
     scheduledon: scheduleAt ? new Date(scheduleAt) : null,
     createdon: new Date(),
     readby: 0,
