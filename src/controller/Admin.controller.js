@@ -671,11 +671,16 @@ const assigntask = asynchandler(async (req, res) => {
 
 const updatetask = asynchandler(async (req, res) => {
   const { id } = req.params;
-  const user = req.user;
+  const userid = req.user._id;
   const { status, priority, employeeid, dueAt } = req.body;
 
   if (!id) {
     throw new Apierror(400, "Task id is required");
+  }
+  const updatedby = await User.find(userid)
+
+  if(!updatedby){
+    throw new Apierror(404,"User not authorized")
   }
 
   const task = await Task.findById(id);
@@ -690,7 +695,7 @@ const updatetask = asynchandler(async (req, res) => {
   task.history = [];
 }
     task.history.push({
-      actionby: user.name,
+      actionby: updatedby.name,
       title: `Status updated to ${status}`,
       timeat: Date.now()
     });
@@ -702,7 +707,7 @@ const updatetask = asynchandler(async (req, res) => {
   task.history = [];
 }
     task.history.push({
-      actionby: user.name,
+      actionby: updatedby.name,
       title: `Priority updated to ${priority}`,
       timeat: Date.now()
     });
@@ -719,7 +724,7 @@ const updatetask = asynchandler(async (req, res) => {
   task.history = [];
 }
     task.history.push({
-      actionby: user.name,
+      actionby: updatedby.name,
       title: `Allotted to ${employee.name}`,
       timeat: Date.now()
     });
@@ -741,7 +746,7 @@ const updatetask = asynchandler(async (req, res) => {
   task.history = [];
 }
   task.history.push({
-    actionby: user.name,
+    actionby:updatedby.name,
     title: "Deadline updated",
     timeat: Date.now()
   });
