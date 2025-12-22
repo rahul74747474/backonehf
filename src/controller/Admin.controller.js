@@ -669,61 +669,80 @@ const assigntask = asynchandler(async (req, res) => {
   );
 });
 
-const updatetask = asynchandler(async(req,res)=>{
-  const {id} = req.params
-  const user = req.user
-  const {status , priority , employeeid ,dueAt}=req.body
+const updatetask = asynchandler(async (req, res) => {
+  const { id } = req.params;
+  const user = req.user;
+  const { status, priority, employeeid, dueAt } = req.body;
 
-  if(!id){
-    throw new Apierror(400,"Please give the required id")
+  if (!id) {
+    throw new Apierror(400, "Task id is required");
   }
 
-  const task = await Task.findById(id)
-  const employee = await User.findById(employeeid)
-
-  if(!task){
-    throw new Apierror(400,"No task found with this id")
+  const task = await Task.findById(id);
+  if (!task) {
+    throw new Apierror(404, "No task found with this id");
   }
-   if(status){
-    task.status = status
-    task.history.push({
-      actionby:user.name,
-      title:"Status Updated",
-      timeat:Date.now
-    })
 
-   } 
-   if(priority){
-    task .priority = priority
-    task.history.push({
-      actionby:user.name,
-      title:"Priority Updated",
-      timeat:Date.now
-    })
 
-   } 
-   if(employeeid){
-    task.assignedto = employeeid
+  if (status && status !== task.status) {
+    task.status = status;
     task.history.push({
-      actionby:user.name,
-      title:`Allotted to ${employee.name}`,
-      timeat:Date.now
-    })
-   }
-   if(dueAt){
-    task.dueAt = dueAt
+      actionby: user.name,
+      title: `Status updated to ${status}`,
+      timeat: Date.now()
+    });
+  }
+
+  if (priority && priority !== task.priority) {
+    task.priority = priority;
     task.history.push({
-      actionby:user.name,
-      title:"Deadline Extended",
-      timeat:Date.now
-    })
-   }
+      actionby: user.name,
+      title: `Priority updated to ${priority}`,
+      timeat: Date.now()
+    });
+  }
 
-   const updatedtask = await task.save({validateBeforeSave:false})
+  if (employeeid && String(task.assignedto) !== String(employeeid)) {
+    const employee = await User.findById(employeeid);
+    if (!employee) {
+      throw new Apierror(404, "Assigned employee not found");
+    }
 
-   res.status(200)
-   .json(new Apiresponse(201,"Task Updated Successfully",updatedtask))
-})
+    task.assignedto = employeeid;
+    task.history.push({
+      actionby: user.name,
+      title: `Allotted to ${employee.name}`,
+      timeat: Date.now()
+    });
+  }
+
+  const toDateOnly = (d) => {
+  if (!d) return null;
+  const date = new Date(d);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+};
+
+  if (
+  dueAt &&
+  toDateOnly(dueAt) !== toDateOnly(task.dueAt)
+) {
+  task.dueAt = dueAt;
+  task.history.push({
+    actionby: user.name,
+    title: "Deadline updated",
+    timeat: Date.now()
+  });
+}
+
+
+  const updatedtask = await task.save({ validateBeforeSave: false });
+
+  res
+    .status(200)
+    .json(new Apiresponse(200, "Task updated successfully", updatedtask));
+});
+
 
 const addproject = asynchandler(async (req, res) => {
 
