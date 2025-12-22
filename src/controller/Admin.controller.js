@@ -686,6 +686,9 @@ const updatetask = asynchandler(async (req, res) => {
 
   if (status && status !== task.status) {
     task.status = status;
+    if (!Array.isArray(task.history)) {
+  task.history = [];
+}
     task.history.push({
       actionby: user.name,
       title: `Status updated to ${status}`,
@@ -695,6 +698,9 @@ const updatetask = asynchandler(async (req, res) => {
 
   if (priority && priority !== task.priority) {
     task.priority = priority;
+    if (!Array.isArray(task.history)) {
+  task.history = [];
+}
     task.history.push({
       actionby: user.name,
       title: `Priority updated to ${priority}`,
@@ -709,6 +715,9 @@ const updatetask = asynchandler(async (req, res) => {
     }
 
     task.assignedto = employeeid;
+    if (!Array.isArray(task.history)) {
+  task.history = [];
+}
     task.history.push({
       actionby: user.name,
       title: `Allotted to ${employee.name}`,
@@ -728,6 +737,9 @@ const updatetask = asynchandler(async (req, res) => {
   toDateOnly(dueAt) !== toDateOnly(task.dueAt)
 ) {
   task.dueAt = dueAt;
+  if (!Array.isArray(task.history)) {
+  task.history = [];
+}
   task.history.push({
     actionby: user.name,
     title: "Deadline updated",
