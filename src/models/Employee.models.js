@@ -175,6 +175,39 @@ bankdetails:{
         default:""
     },
 },
+notifications:[{
+    title:{
+        type:String,
+        default:""
+    },
+    details:{
+        type:String,
+        default:""
+    },
+    createdAt:{
+        type:Date,
+        default:null
+    },
+    activities:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"Recent",
+    }
+}],
+recentActivity:[{
+  name:{
+      type:String,
+      default:"",
+    },
+    refs:{
+      type:mongoose.Schema.Types.ObjectId,
+      ref:"Report"||"Task",
+      default:"",
+    },
+    time:{
+        type:Date,
+        default:""
+    }
+}],
 
 deleted:{
   type:Boolean,

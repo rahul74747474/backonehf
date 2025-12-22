@@ -25,7 +25,7 @@ const TaskSchema = mongoose.Schema({
     },
     status:{
         type:String,
-        enum:["Completed","Pending","In Progress"]
+        enum:["Completed","Pending","In Progress","To Do"]
     },
     dueAt:{
         type:Date,
@@ -58,7 +58,35 @@ const TaskSchema = mongoose.Schema({
     completedAt:{
         type:Date,
         default:null
-    }
+    },
+    comments:[{
+       commentby:{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"User"
+       },
+       text:{
+        type:String,
+        default:"",
+       },
+       timeat:{
+        type:Date,
+        default:null
+       }
+    }],
+    history:[{
+        actionby:{
+            type:mongoose.Schema.Types.ObjectId,
+            ref:"User",
+        },
+        title:{
+            type:String,
+            default:"",
+        },
+        timeat:{
+            type:Date,
+            default:null
+        }
+    }]
 },{timestamps:true})
 
 export const Task = new mongoose.model("Task",TaskSchema)

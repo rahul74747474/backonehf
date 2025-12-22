@@ -5,8 +5,10 @@ import { User } from "../models/Employee.models.js";
 
 const verifyjwt = asynchandler(async (req, _, next) => {
   try {
+    console.log("Origin:", req.headers.origin);
     console.log("Cookies:", req.cookies);
-console.log("Auth Header:", req.headers.authorization);
+    console.log("Auth:", req.headers.authorization);
+
   const token = req.cookies?.token || req.headers?.authorization?.replace("Bearer ", "")
 
 

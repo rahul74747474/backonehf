@@ -6,7 +6,7 @@ const adminrouter = Router()
 
 adminrouter.route("/addemployee").post(addemployee)
 adminrouter.route("/adminlogin").post(adminlogin)
-adminrouter.route("/assigntask").post(assigntask)
+adminrouter.route("/assigntask").post(verifyjwt,assigntask)
 adminrouter.route("/addproject").post(addproject)
 adminrouter.route("/createticket").post(verifyjwt,createticket)
 adminrouter.route("/createrole").post(createrole)
@@ -28,7 +28,7 @@ adminrouter.route("/export").post(
 adminrouter.route("/updateproject").put(updateProject)
 adminrouter.route("/updaterole").put(updaterole)
 adminrouter.route("/updateemployee").put(updateemployee)
-adminrouter.route("/updatetask/:id").put(updatetask)
+adminrouter.route("/updatetask/:id").put(verifyjwt,updatetask)
 //get apis
 adminrouter.route("/getallproject").get(allprojects)
 adminrouter.route("/getuser").get(verifyjwt,getuser)
