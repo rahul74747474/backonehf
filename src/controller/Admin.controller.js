@@ -622,6 +622,7 @@ const logout = asynchandler(async(req,res)=>{
 
 const assigntask = asynchandler(async (req, res) => {
   const { employeeid, title, description, dueAt, linkedproject, status, priority } = req.body;
+  const user = req.user
 
   if (!employeeid || !title || !description || !dueAt || !linkedproject || !status || !priority) {
     throw new Apierror(400, "Please fill all required fields");
@@ -640,7 +641,12 @@ const assigntask = asynchandler(async (req, res) => {
     projectId: linkedproject,
     assignedto: employeeid,
     priority,
-    status
+    status,
+    history:[{
+      actionby : user.name,
+      title:"Created Task",
+      timeat:Date.now
+    }]
   });
 
 
@@ -665,6 +671,7 @@ const assigntask = asynchandler(async (req, res) => {
 
 const updatetask = asynchandler(async(req,res)=>{
   const {id} = req.params
+  const user = req.user
   const {status , priority , employeeid ,dueAt}=req.body
 
   if(!id){
@@ -672,14 +679,45 @@ const updatetask = asynchandler(async(req,res)=>{
   }
 
   const task = await Task.findById(id)
+  const employee = await User.findById(employeeid)
 
   if(!task){
     throw new Apierror(400,"No task found with this id")
   }
-   if(status) task.status = status
-   if(priority) task .priority = priority
-   if(employeeid) task.assignedto = employeeid
-   if(dueAt)task.dueAt = dueAt
+   if(status){
+    task.status = status
+    task.history.push({
+      actionby:user.name,
+      title:"Status Updated",
+      timeat:Date.now
+    })
+
+   } 
+   if(priority){
+    task .priority = priority
+    task.history.push({
+      actionby:user.name,
+      title:"Priority Updated",
+      timeat:Date.now
+    })
+
+   } 
+   if(employeeid){
+    task.assignedto = employeeid
+    task.history.push({
+      actionby:user.name,
+      title:`Allotted to ${employee.name}`,
+      timeat:Date.now
+    })
+   }
+   if(dueAt){
+    task.dueAt = dueAt
+    task.history.push({
+      actionby:user.name,
+      title:"Deadline Extended",
+      timeat:Date.now
+    })
+   }
 
    const updatedtask = await task.save({validateBeforeSave:false})
 
