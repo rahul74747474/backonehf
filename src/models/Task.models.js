@@ -25,7 +25,8 @@ const TaskSchema = mongoose.Schema({
     },
     status:{
         type:String,
-        enum:["Completed","Pending","In Progress","To Do"]
+        enum:["Completed","Pending","In Progress","To Do"],
+        default:"To Do"
     },
     dueAt:{
         type:Date,
@@ -61,8 +62,8 @@ const TaskSchema = mongoose.Schema({
     },
     comments:[{
        commentby:{
-        type:mongoose.Schema.Types.ObjectId,
-        ref:"User"
+        type:String,
+        default:""
        },
        text:{
         type:String,
@@ -75,8 +76,8 @@ const TaskSchema = mongoose.Schema({
     }],
     history:[{
         actionby:{
-            type:mongoose.Schema.Types.ObjectId,
-            ref:"User",
+            type:String,
+            default:""
         },
         title:{
             type:String,

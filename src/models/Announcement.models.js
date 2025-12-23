@@ -62,7 +62,17 @@ createdon:{
 readby:{
     type:Number,
     default:0
-}
+},
+acknowledged:[{
+  userid:{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
+  status:{
+    type:Boolean,
+    default:false,
+  }
+}]
 
 },{timestamps:true})
 

@@ -1,11 +1,13 @@
 
 import { User } from "../models/Employee.models.js";
-
+import { uploadToCloudinary } from "../utils/cloudinary.utils.js";
 import { Task } from "../models/Task.models.js";
 import { Apierror } from "../utils/Apierror.utils.js";
 import { Apiresponse } from "../utils/Apiresponse.utils.js";
 import { asynchandler } from "../utils/Asynchandler.utils.js";
 import { Attendance } from "../models/Attendance.models.js";
+import { Report } from "../models/Reports.models.js";
+import { Announcement } from "../models/Announcement.models.js";
 
 
 
@@ -215,5 +217,246 @@ export const saveTime = async (req, res) => {
   }
 };
 
+export const uploadTaskAttachment = asynchandler(async (req, res) => {
+  const { taskId  } = req.body;
+  const user = req.user
 
-export {employeelogin,getuser,taskcompleted,startAttendance}
+  const employee = await User.findById(user._id)
+
+  if (!employee ) {
+    throw new Apierror(404, "Employee not found");
+  }
+
+  if (!req.file || !taskId) {
+    throw new Apierror(400, "File is required");
+  }
+
+  const task = await Task.findById(taskId);
+  if (!task ) {
+    throw new Apierror(404, "Task not found");
+  }
+
+  // Upload to Cloudinary
+  const uploaded = await uploadToCloudinary(
+    req.file.buffer,
+    "prism/tasks",
+    `${taskId}-${Date.now()}`
+  );
+
+  // Save file URL in schema (dependencies.files)
+  task.dependencies.files.push(uploaded.secure_url);
+
+  // History entry
+  task.history.push({
+    actionby:user.name,
+    title: `Attachment added: ${req.file.originalname}`,
+    timeat: Date.now()
+  });
+
+  await task.save({ validateBeforeSave: false });
+
+  employee.recentActivity.push({
+    name:"Attachment added",
+    refs:task._id,
+    time:Date.now()
+  })
+
+  await employee.save({ validateBeforeSave: false });
+
+
+  res.status(201).json(
+    new Apiresponse(201, "Attachment uploaded successfully", {
+      fileUrl: uploaded.secure_url,
+      fileName: req.file.originalname
+    })
+  );
+});
+
+const sendcomment = asynchandler(async(req,res)=>{
+  const {comment,taskid,userid} = req.body
+
+  if(!comment || !taskid ||!userid){
+    throw new Apierror(404,"Please fill all the required fields")
+  }
+
+  const task = await Task.findById(taskid)
+  const user = await User.findById(userid)
+
+  if(!task || !user){
+    throw new Apierror(400,"Task or User not found")
+  }
+
+  task.comments.push({
+    commentby:user.name,
+    text:comment,
+    timeat:Date.now()
+  })
+
+  task.history.push({
+    actionby:user.name,
+    title: `Comment By ${user.name}`,
+    timeat: Date.now()
+  });
+  await task.save({validateBeforeSave:false})
+
+  user.recentActivity.push({
+    name:`${user.name} Commented`,
+    refs:task._id,
+    time:Date.now()
+  })
+
+  await user.save({ validateBeforeSave: false });
+
+
+  res.status(200)
+  .json(new Apiresponse(201,"Comment done Successfully",task.comments))
+
+})
+
+const completetask = asynchandler(async(req,res)=>{
+  const {taskid,userid} = req.body
+
+  if(!taskid ||!userid){
+    throw new Apierror(404,"Please fill all the required fields")
+  }
+
+  const task = await Task.findById(taskid)
+  const user = await User.findById(userid)
+
+  if(!task || !user){
+    throw new Apierror(400,"Task or User not found")
+  }
+
+  task.status = "Completed"
+  task.history.push({
+    actionby:user.name,
+    title: `Task Completed`,
+    timeat: Date.now()
+  });
+  await task.save({validateBeforeSave:false})
+
+  user.recentActivity.push({
+    name:`Task Completed`,
+    refs:task._id,
+    time:Date.now()
+  })
+
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200)
+  .json(new Apiresponse(201,"Task Completed Successfully",task))
+
+})
+
+const reviewtask = asynchandler(async(req,res)=>{
+  const {taskid,userid} = req.body
+
+  if(!taskid ||!userid){
+    throw new Apierror(404,"Please fill all the required fields")
+  }
+
+  const task = await Task.findById(taskid)
+  const user = await User.findById(userid)
+
+  if(!task || !user){
+    throw new Apierror(400,"Task or User not found")
+  }
+
+  task.status = "Pending"
+  task.history.push({
+    actionby:user.name,
+    title: `Task set to Review`,
+    timeat: Date.now()
+  });
+  await task.save({validateBeforeSave:false})
+
+  user.recentActivity.push({
+    name:`Task Set for Review`,
+    refs:task._id,
+    time:Date.now()
+  })
+
+  await user.save({ validateBeforeSave: false });
+
+
+  res.status(200)
+  .json(new Apiresponse(201,"Task set to Review Successfully",task))
+
+})
+
+const submitreport =asynchandler(async(req,res)=>{
+  const {user,relatedtasks,subtasks,summary}=req.body
+  
+  if(!user || !relatedtasks || !summary ||!subtasks){
+    throw new Apierror(400,"Please fill all the required details")
+  }
+
+  const employee = await User.findById(user)
+  if(!employee){
+    throw new Apierror(404,"User with this id do not exists")
+  }
+
+  const report = await Report.create({
+    user:user,
+    date:Date.now(),
+    summary:summary,
+    relatedtasks:relatedtasks,
+    subtasks:subtasks,
+
+  })
+
+  if(!report){
+    throw new Apierror(400,"Something Went Wrong in Creating Report ")
+  }
+
+  employee.recentActivity.push({
+    name:"Report Submitted Today",
+    ref:"",
+    time:Date.now()
+  })
+  await employee.save({validateBeforeSave:false})
+
+  res.status(201)
+  .json(201,"Report Submitted Successfully",report)
+})
+
+const acknowledge = asynchandler(async(req,res)=>{
+  const {id,user}=req.body
+  if(!id || !user){
+    throw new Apierror(400,"Please fill all the requires fields")
+  }
+
+  const announce = await Announcement.findById(id)
+  if(!announce){
+    throw new Apierror(404,"Announcement noy found")
+  }
+
+  const employee = await User.findById(user)
+  if(!employee){
+    throw new Apierror(404,"Employee not found")
+  }
+
+  announce.readby =announce.readby + 1
+  if(!announce.acknowledged)announce.acknowledged = []
+
+  announce.acknowledged.push({
+    userid:user,
+    status:true
+  })
+  await announce.save({validateBeforeSave:false})
+
+  employee.recentActivity.push({
+    name:"Announcement Acknowledged",
+    ref:"",
+    time:Date.now()
+  })
+  await employee.save({validateBeforeSave:false})
+
+  res.status(201)
+  .json(201,"Report Submitted Successfully",announce)
+
+
+})
+
+
+export {employeelogin,getuser,taskcompleted,acknowledge,startAttendance,reviewtask,sendcomment,completetask,submitreport}

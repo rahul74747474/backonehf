@@ -18,18 +18,24 @@ const ReportSchema = mongoose.Schema({
       type:mongoose.Schema.Types.ObjectId,
       ref:"Task"
     }],
-    attachements:{
-        files:[{
+    subtasks:[{
+           title:{
             type:String,
-            default:"",
+            default:""
+           },
         }],
-        links:[
-            {
-                type:String,
-                default:""
-            }
-        ]
-    },
+    // attachements:{
+    //     files:[{
+    //         type:String,
+    //         default:"",
+    //     }],
+    //     links:[
+    //         {
+    //             type:String,
+    //             default:""
+    //         }
+    //     ]
+    // },
     deleted:{
         type:Boolean,
         default:false

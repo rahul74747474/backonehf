@@ -621,10 +621,10 @@ const logout = asynchandler(async(req,res)=>{
 })
 
 const assigntask = asynchandler(async (req, res) => {
-  const { employeeid, title, description, dueAt, linkedproject, status, priority } = req.body;
+  const { employeeid, title, description, dueAt, linkedproject, priority } = req.body;
   const user = req.user
 
-  if (!employeeid || !title || !description || !dueAt || !linkedproject || !status || !priority) {
+  if (!employeeid || !title || !description || !dueAt || !linkedproject || !priority) {
     throw new Apierror(400, "Please fill all required fields");
   }
 
@@ -641,7 +641,7 @@ const assigntask = asynchandler(async (req, res) => {
     projectId: linkedproject,
     assignedto: employeeid,
     priority,
-    status,
+    status:"To Do",
     history:[{
       actionby : user.name,
       title:"Created Task",
