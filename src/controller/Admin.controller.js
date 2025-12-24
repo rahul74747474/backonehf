@@ -644,7 +644,7 @@ const assigntask = asynchandler(async (req, res) => {
     history:[{
       actionby : user.name,
       title:"Created Task",
-      timeat:Date.now
+      timeat:Date.now()
     }]
   });
 
