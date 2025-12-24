@@ -1,5 +1,5 @@
 import {Router} from "express"
-import { acknowledge, completetask, employeelogin, reviewtask, saveTime, sendcomment, startAttendance, submitreport, taskcompleted, uploadTaskAttachment } from "../controller/Employee.controller.js"
+import { acknowledge, completetask, employeelogin, punchout, reviewtask, saveTime, sendcomment, startAttendance, submitreport, taskcompleted, uploadTaskAttachment } from "../controller/Employee.controller.js"
 import { verifyjwt } from "../middleware/auth.middleware.js"
 import { getuser } from "../controller/Admin.controller.js"
 import { upload } from "../middleware/multer.middleware.js"
@@ -10,6 +10,7 @@ employeerouter.route("/login").post(employeelogin)
 employeerouter.route("/completedtask").post(verifyjwt,taskcompleted)
 employeerouter.route("/start-attendance").post(startAttendance)
 employeerouter.route("/save-time").post(saveTime)
+employeerouter.route("/punchout").post(punchout)
 employeerouter.route("/complete-task").post(completetask)
 employeerouter.route("/review-task").post(reviewtask)
 employeerouter.route("/acknowledged").post(acknowledge)

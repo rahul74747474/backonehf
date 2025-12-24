@@ -198,10 +198,17 @@ recentActivity:[{
       type:String,
       default:"",
     },
-    refs:{
-      type:mongoose.Schema.Types.ObjectId,
-      ref:"Report"||"Task",
-      default:"",
+    refModel: {
+      type: String,
+      enum: ["Task", "Report", "Token", "Project"],
+      default: null,  
+    },
+
+   
+    refs: {
+      type: mongoose.Schema.Types.ObjectId,
+      refPath: "recentActivity.refModel",
+      default: null, 
     },
     time:{
         type:Date,

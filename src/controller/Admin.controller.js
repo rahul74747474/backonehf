@@ -687,8 +687,19 @@ const updatetask = asynchandler(async (req, res) => {
     throw new Apierror(404, "No task found with this id");
   }
 
-
-  if (status && status !== task.status) {
+  if(task.status === "Completed" && status !== "Completed" && status){
+      task.status = status;
+      task.completedAt = null
+    if (!Array.isArray(task.history)) {
+  task.history = [];
+}
+    task.history.push({
+      actionby: updatedby.name,
+      title: `Status updated to ${status}`,
+      timeat: Date.now()
+    });
+  }
+  else if(status && status !== task.status) {
     task.status = status;
     if (!Array.isArray(task.history)) {
   task.history = [];
@@ -1170,8 +1181,9 @@ const updatestatus = asynchandler(async(req,res)=>{
 
 const addcomment = asynchandler(async(req,res)=>{
   const {id,comment} = req.body
+  const user = req.user
 
-  if(!id || !comment){
+  if(!id || !comment ||!user){
     throw new Apierror(400,"Please fill all the required fields")
   }
 
@@ -1182,15 +1194,26 @@ const addcomment = asynchandler(async(req,res)=>{
 
  ticket.comments.push({
   text:comment,
-  by:"Aishwarya G",
+  by:user.name,
   date:Date.now()
-
- })
+})
  if(ticket.status === "Open"){
   ticket.status = "In Progress"
  }
 
  await ticket.save({validateBeforeSave:false})
+
+ const employee = await User.findById(user._id)
+ if(!employee){
+  throw new Apierror(404,"User not Authorized")
+ }
+
+ employee.recentActivity.push({
+  name:"Commented on issue raised",
+  refs:"",
+  time:Date.now()
+ })
+ await employee.save({validateBeforeSave:false})
 
  res.status(200)
  .json(new Apiresponse(201,"Comment Added Successfully",ticket))

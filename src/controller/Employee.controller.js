@@ -208,6 +208,19 @@ export const saveTime = async (req, res) => {
       attendance
     });
 
+     const employee = await User.findById(userId)
+
+    if(!employee){
+      throw new Apierror(404,"User not Found")
+    }
+
+    employee.recentActivity.push({
+      name:"Break Time Started",
+      refs:"",
+      time:Date.now()
+    })
+    await employee.save({validateBeforeSave:false})
+
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -328,6 +341,7 @@ const completetask = asynchandler(async(req,res)=>{
   }
 
   task.status = "Completed"
+  task.completedAt=Date.now()
   task.history.push({
     actionby:user.name,
     title: `Task Completed`,
@@ -385,9 +399,9 @@ const reviewtask = asynchandler(async(req,res)=>{
 })
 
 const submitreport =asynchandler(async(req,res)=>{
-  const {user,relatedtasks,subtasks,summary}=req.body
+  const {user,relatedtasks,summary}=req.body
   
-  if(!user || !relatedtasks || !summary ||!subtasks){
+  if(!user || !relatedtasks || !summary ){
     throw new Apierror(400,"Please fill all the required details")
   }
 
@@ -401,8 +415,6 @@ const submitreport =asynchandler(async(req,res)=>{
     date:Date.now(),
     summary:summary,
     relatedtasks:relatedtasks,
-    subtasks:subtasks,
-
   })
 
   if(!report){
@@ -458,5 +470,63 @@ const acknowledge = asynchandler(async(req,res)=>{
 
 })
 
+const punchout = asynchandler(async(req,res)=>{
+  try {
+    const { seconds ,userId} = req.body;
 
-export {employeelogin,getuser,taskcompleted,acknowledge,startAttendance,reviewtask,sendcomment,completetask,submitreport}
+    if (!seconds || seconds <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid time"
+      });
+    }
+
+    const { start, end } = getTodayRange();
+
+    const attendance = await Attendance.findOne({
+      user: userId,
+      date: { $gte: start, $lte: end }
+    });
+
+    if (!attendance) {
+      return res.status(404).json({
+        success: false,
+        message: "Attendance not found for today"
+      });
+    }
+
+    attendance.timespent += seconds;
+    attendance.punchout = Date.now();
+
+    await attendance.save();
+
+    const employee = await User.findById(userId)
+
+    if(!employee){
+      throw new Apierror(404,"User not Found")
+    }
+
+    employee.recentActivity.push({
+      name:"Punched Out Successfully",
+      refs:"",
+      time:Date.now()
+    })
+    await employee.save({validateBeforeSave:false})
+
+    res.status(200).json({
+      success: true,
+      message: "Punched Out Safely",
+      attendance
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error saving time",
+      error: error.message
+    });
+  }
+})
+
+
+export {employeelogin,getuser,taskcompleted,acknowledge,punchout,startAttendance,reviewtask,sendcomment,completetask,submitreport}
