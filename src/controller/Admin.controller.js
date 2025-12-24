@@ -641,7 +641,6 @@ const assigntask = asynchandler(async (req, res) => {
     projectId: linkedproject,
     assignedto: employeeid,
     priority,
-    status:"To Do",
     history:[{
       actionby : user.name,
       title:"Created Task",
