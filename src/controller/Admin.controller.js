@@ -1094,7 +1094,9 @@ const assignbulkrole = asynchandler(async(req,res)=>{
     throw new Apierror(400,"Role not Found")
   }
 
-  roles.users = users
+  for(let user of users){
+    roles.users.push(user)
+  }
   await roles.save({validateBeforeSave:false})
 
   const employees = await User.find()

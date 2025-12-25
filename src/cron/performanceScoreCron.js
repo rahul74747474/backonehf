@@ -1,92 +1,127 @@
-import { User } from "../models/Employee.models.js";
-
-import { PerformanceScore } from "../models/PerformanceScore.models.js";
 import cron from "node-cron";
+import { User } from "../models/Employee.models.js";
 import { Task } from "../models/Task.models.js";
 import { Report } from "../models/Reports.models.js";
-import { addOrUpdateRedFlag } from "./addRedFlags.js";
 import { Attendance } from "../models/Attendance.models.js";
-// import { Feedback } from "../models/Feedback.models.js";
-// import { Review } from "../models/Review.models.js";
+import { PerformanceScore } from "../models/PerformanceScore.models.js";
+import { addOrUpdateRedFlag } from "./addRedFlags.js";
+
+
+const isWeekend = d => d.getDay() === 0 || d.getDay() === 6;
+
+const getWorkingDate = () => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  while (isWeekend(d)) d.setDate(d.getDate() - 1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
 
 cron.schedule("00 0 * * *", async () => {
-  console.log("Calculating daily performance...");
+  console.log("Daily Performance CRON Running...");
 
-  const users = await User.find();
+  const date = getWorkingDate();
+  const start = new Date(date);
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
 
-  for (let user of users) {
+  const users = await User.find({}, "_id name");
 
-    const today = new Date().toISOString().split("T")[0];
+  for (const user of users) {
 
-    const totalTasks = await Task.countDocuments({ assignedto: user._id });
-    const completedToday = await Task.countDocuments({
+    const todaysTasks = await Task.find({
       assignedto: user._id,
-      status: "Completed",
-      completedAt: { $gte: new Date(today) }
+      dueAt: { $gte: start, $lte: end }
     });
 
-    const taskScore = totalTasks === 0 ? 0 : (completedToday / totalTasks) * 50;
+    const completedTasks = todaysTasks.filter(
+      t => t.status === "Completed"
+    ).length;
 
+    let taskScore = 0;
+    if (todaysTasks.length) {
+      const ratio = completedTasks / todaysTasks.length;
+      taskScore =
+        ratio === 1 ? 40 :
+        ratio >= 0.75 ? 30 :
+        ratio >= 0.5 ? 20 :
+        ratio > 0 ? 10 : 0;
+    }
 
-    const submittedReport = await Report.findOne({
+    
+    const report = await Report.findOne({
       user: user._id,
-      date: today
+      date: { $gte: start, $lte: end }
     });
+    const reportScore = report ? 20 : 0;
 
-    const reportScore = submittedReport ? 20 : 0;
-
-    const present = await Attendance.findOne({
+    
+    const attendance = await Attendance.findOne({
       user: user._id,
-      date: today,
-      status: "Present"
+      date: { $gte: start, $lte: end }
     });
+    const attendanceScore = attendance ? 25 : 0;
 
-    const attendanceScore = present ? 20 : 0;
+    
+    let consistency = 0;
+    let daysChecked = 0;
+    let cursor = new Date(start);
 
+    while (daysChecked < 5) {
+      cursor.setDate(cursor.getDate() - 1);
+      if (isWeekend(cursor)) continue;
 
-    // const peerFeedback = await Feedback.findOne({ user: user._id });
-    // const peerScore = peerFeedback ? peerFeedback.peerRating : 0; // 0-10
+      const hasCompletedTask = await Task.exists({
+        assignedto: user._id,
+        completedAt: {
+          $gte: new Date(cursor.setHours(0,0,0,0)),
+          $lte: new Date(cursor.setHours(23,59,59,999))
+        }
+      });
 
-    // const managerReview = await Review.findOne({ user: user._id });
-    // const managerScore = managerReview ? managerReview.managerRating : 0; // 0-15
+      if (hasCompletedTask) consistency++;
+      daysChecked++;
+    }
 
-    // const hrReview = managerReview ? managerReview.hrRating : 0; // 0–5
+    const consistencyScore =
+      consistency === 5 ? 15 :
+      consistency === 4 ? 12 :
+      consistency === 3 ? 8 : 0;
 
-
+    
     const totalScore =
       taskScore +
       reportScore +
-      attendanceScore ;
-      // peerScore +
-      // managerScore +
-      // hrReview;
+      attendanceScore +
+      consistencyScore;
 
-   if (totalScore < 50) {
+ 
+    if (totalScore < 60) {
       await addOrUpdateRedFlag({
         userId: user._id,
         type: "Low Performance",
-        severity: "medium",
-        reason: `Performance dropped to ${user.performanceScore}`,
-        date: today
+        severity: totalScore < 40 ? "high" : "medium",
+        tags: ["Performance"],
+        reason: `Daily performance dropped to ${totalScore}/100`,
+        date: start
       });
     }
-
 
     await PerformanceScore.create({
       userId: user._id,
       period: "daily",
+      date: start,
       scores: {
         tasks: taskScore,
         reports: reportScore,
         attendance: attendanceScore,
-        peer: 0,
-        manager: 0,
-        hr: 0,
+        consistency: consistencyScore
       },
-      totalScore,
+      totalScore
     });
 
-    console.log(`Saved performance for ${user.name}`);
+    console.log(`Performance saved for ${user.name}`);
   }
 
+  console.log("Daily Performance CRON Completed");
 });

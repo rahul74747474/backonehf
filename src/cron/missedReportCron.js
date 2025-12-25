@@ -3,46 +3,63 @@ import { User } from "../models/Employee.models.js";
 import { Report } from "../models/Reports.models.js";
 import { addOrUpdateRedFlag } from "./addRedFlags.js";
 
-cron.schedule("00 0 * * *", async () => {
-  console.log("Missed Report CRON Running...");
 
-  const users = await User.find();
+const isWeekend = (date) => {
+  const d = date.getDay();
+  return d === 0 || d === 6;
+};
+
+
+const getMissedWorkingDays = async (userId, today) => {
+  let missed = 0;
+  let cursor = new Date(today);
+
+  while (missed < 5) {
+    cursor.setDate(cursor.getDate() - 1);
+
+    if (isWeekend(cursor)) continue;
+
+    const start = new Date(cursor);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(cursor);
+    end.setHours(23, 59, 59, 999);
+
+    const report = await Report.findOne({
+      user: userId,
+      date: { $gte: start, $lte: end }
+    });
+
+    if (report) break; 
+
+    missed++;
+  }
+
+  return missed;
+};
+
+cron.schedule("00 0 * * *", async () => {
+  console.log(" Missed Report CRON Running...");
+
   const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
+  today.setHours(0, 0, 0, 0);
+
+  const users = await User.find({}, "_id name");
 
   for (const user of users) {
-    let missed = 0;
+    const missedDays = await getMissedWorkingDays(user._id, today);
 
-    // Check previous 3 days
-    for (let i = 1; i <= 3; i++) {
-      const checkDate = new Date(today);
-      checkDate.setDate(today.getDate() - i);
-
-      const start = new Date(checkDate);
-      start.setHours(0, 0, 0, 0);
-
-      const end = new Date(checkDate);
-      end.setHours(23, 59, 59, 999);
-
-      const report = await Report.findOne({
-        user: user._id,
-        date: { $gte: start, $lte: end }
-      });
-
-      if (!report) missed++;
-    }
-
-    // If user missed last 3 days → red flag
-    if (missed === 3) {
+    if (missedDays >= 2) {
       await addOrUpdateRedFlag({
         userId: user._id,
         type: "Missed Report",
-        severity: "high",
-        reason: "Missed 3 consecutive daily reports",
-        date: todayStr
+        severity: missedDays >= 4 ? "high" : "medium",
+        tags: ["Missed Report"],
+        reason: `Missed daily report for ${missedDays} consecutive working days`,
+        date: today
       });
     }
   }
 
-  console.log("Missed Report CRON Completed");
+  console.log(" Missed Report CRON Completed");
 });
