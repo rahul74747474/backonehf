@@ -5,61 +5,63 @@ import { addOrUpdateRedFlag } from "./addRedFlags.js";
 
 const EXCLUDED_DESIGNATIONS = ["Administrator"];
 
-const isWeekend = (date) => {
-  const day = date.getDay();
-  return day === 0 || day === 6;
-};
+cron.schedule(
+  "30 01 * * *",
+  async () => {
+    try {
+      const { istToday, utcToday } = getTodayIST_UTC();
 
-const getWorkingDaysBetween = (fromDate, toDate) => {
-  let count = 0;
-  const d = new Date(fromDate);
+      console.log(
+        "📅 Inactive check date (IST):",
+        istToday.toLocaleDateString("en-IN")
+      );
 
-  while (d < toDate) {
-    d.setDate(d.getDate() + 1);
-    if (!isWeekend(d)) count++;
-  }
-  return count;
-};
+      const users = await User.find({}, "_id designation");
 
-cron.schedule("50 00 * * *", async () => {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+      for (const user of users) {
+        if (
+          EXCLUDED_DESIGNATIONS.includes(user?.designation?.name)
+        )
+          continue;
 
-    const users = await User.find({}, "_id designation");
+        const lastAttendance = await Attendance.findOne(
+          { user: user._id },
+          { date: 1 }
+        ).sort({ date: -1 });
 
-    for (const user of users) {
-      if (EXCLUDED_DESIGNATIONS.includes(user?.designation?.name)) continue;
+        if (!lastAttendance) continue;
 
-      const lastAttendance = await Attendance.findOne(
-        { user: user._id },
-        { date: 1 }
-      ).sort({ date: -1 });
+        const lastDateUTC = new Date(lastAttendance.date);
+        lastDateUTC.setHours(0, 0, 0, 0);
 
-      if (!lastAttendance) continue;
+        const inactiveDays = getWorkingDaysBetween(
+          lastDateUTC,
+          utcToday
+        );
 
-      const lastDate = new Date(lastAttendance.date);
-      lastDate.setHours(0, 0, 0, 0);
-
-      const inactiveDays = getWorkingDaysBetween(lastDate, today);
-
-      if (inactiveDays >= 3) {
-        await addOrUpdateRedFlag({
-          userId: user._id,
-          type: "Inactive User",
-          severity:
-            inactiveDays >= 7 ? "high" :
-            inactiveDays >= 5 ? "medium" : "low",
-          tags: ["Attendance"],
-          reason: `Inactive for ${inactiveDays} working days`,
-          date: today
-        });
+        if (inactiveDays >= 3) {
+          await addOrUpdateRedFlag({
+            userId: user._id,
+            type: "Inactive User",
+            severity:
+              inactiveDays >= 7
+                ? "high"
+                : inactiveDays >= 5
+                ? "medium"
+                : "low",
+            tags: ["Attendance"],
+            reason: `Inactive for ${inactiveDays} working days`,
+            date: new Date() // store UTC now
+          });
+        }
       }
+
+      console.log("✅ Inactive User CRON completed");
+    } catch (err) {
+      console.error("❌ Inactive User CRON Failed", err);
     }
-  } catch (err) {
-    console.error("Inactive User CRON Failed", err);
-  }
-},
- {
+  },
+  {
     timezone: "Asia/Kolkata"
-  });
+  }
+);

@@ -1,85 +1,159 @@
 import cron from "node-cron";
 import { User } from "../models/Employee.models.js";
+import { Task } from "../models/Task.models.js";
 import { Report } from "../models/Reports.models.js";
+import { Attendance } from "../models/Attendance.models.js";
+import { PerformanceScore } from "../models/PerformanceScore.models.js";
 import { addOrUpdateRedFlag } from "./addRedFlags.js";
 
-const EXCLUDED_DESIGNATIONS = ["Administrator"];
+/* =========================
+   IST DATE HELPERS
+========================= */
+const getYesterdayISTRange = () => {
+  const nowIST = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
 
-const getToday = () => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
+  const yesterday = new Date(nowIST);
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(0, 0, 0, 0);
+
+  const dayStart = new Date(yesterday);
+  const dayEnd = new Date(yesterday);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  return { yesterday, dayStart, dayEnd };
 };
 
-const isWeekend = (date) => {
-  const day = date.getDay();
-  return day === 0 || day === 6;
-};
+/* =========================
+   CRON
+========================= */
+cron.schedule(
+  "30 01 * * *",
+  async () => {
+    try {
+      const { yesterday, dayStart, dayEnd } = getYesterdayISTRange();
 
-cron.schedule("50 00 * * *", async () => {
-  console.log("🚀 Missed Report CRON Started");
+      console.log(
+        "📅 Scoring date (IST):",
+        yesterday.toLocaleDateString("en-IN")
+      );
 
-  try {
-    const today = getToday();
+      const users = await User.find(
+        { "designation.name": { $ne: "Administrator" } },
+        "_id"
+      );
 
-    const users = await User.find(
-      {
-        "designation.name": { $ne: "Administrator" },
-        "onboarding.completedAt": { $exists: true } // 🔥 onboarding completed only
-      },
-      "_id onboarding"
-    );
+      for (const user of users) {
+        /* =========================
+           TASK SCORE
+        ========================= */
+        const tasks = await Task.find({
+          assignedto: user._id,
+          dueAt: { $gte: dayStart, $lte: dayEnd }
+        });
 
-    for (const user of users) {
-      let missedCount = 0;
-      let cursor = new Date(today);
+        const completed = tasks.filter(
+          (t) => t.status === "Completed"
+        ).length;
 
-      while (missedCount < 3) {
-        cursor.setDate(cursor.getDate() - 1);
-
-        if (isWeekend(cursor)) continue;
-
-        // 🔥 onboarding guard
-        if (
-          user.onboarding?.completedAt &&
-          cursor < new Date(user.onboarding.completedAt)
-        ) {
-          break;
+        let taskScore = 0;
+        if (tasks.length) {
+          const ratio = completed / tasks.length;
+          taskScore =
+            ratio === 1
+              ? 40
+              : ratio >= 0.75
+              ? 30
+              : ratio >= 0.5
+              ? 20
+              : ratio > 0
+              ? 10
+              : 0;
         }
 
-        const dayStart = new Date(cursor);
-        dayStart.setHours(0, 0, 0, 0);
-
-        const dayEnd = new Date(cursor);
-        dayEnd.setHours(23, 59, 59, 999);
-
-        const reportExists = await Report.exists({
+        /* =========================
+           REPORT SCORE
+        ========================= */
+        const reportScore = (await Report.exists({
           user: user._id,
           date: { $gte: dayStart, $lte: dayEnd }
-        });
+        }))
+          ? 20
+          : 0;
 
-        if (reportExists) break;
+        /* =========================
+           ATTENDANCE SCORE
+        ========================= */
+        const attendanceScore = (await Attendance.exists({
+          user: user._id,
+          date: { $gte: dayStart, $lte: dayEnd }
+        }))
+          ? 25
+          : 0;
 
-        missedCount++;
-      }
+        const totalScore =
+          taskScore + reportScore + attendanceScore;
 
-      if (missedCount >= 3) {
-        await addOrUpdateRedFlag({
+        /* =========================
+           UPSERT PERFORMANCE SCORE
+        ========================= */
+        await PerformanceScore.findOneAndUpdate(
+          {
+            userId: user._id,
+            date: yesterday,
+            period: "daily"
+          },
+          {
+            $set: {
+              scores: {
+                tasks: taskScore,
+                reports: reportScore,
+                attendance: attendanceScore
+              },
+              totalScore
+            }
+          },
+          { upsert: true }
+        );
+
+        /* =========================
+           LAST 3 DAYS AVG CHECK
+        ========================= */
+        const fromDate = new Date(yesterday);
+        fromDate.setDate(fromDate.getDate() - 2);
+
+        const last3 = await PerformanceScore.find({
           userId: user._id,
-          type: "Missed Report",
-          severity: "medium",
-          tags: ["Report"],
-          reason: `Missed daily report for ${missedCount} consecutive working days`,
-          date: today
+          period: "daily",
+          date: { $gte: fromDate, $lte: yesterday }
         });
-      }
-    }
 
-    console.log("✅ Missed Report CRON Completed");
-  } catch (err) {
-    console.error("❌ Missed Report CRON Failed", err);
-  }
-},
- {
+        if (last3.length === 3) {
+          const avg =
+            last3.reduce((s, d) => s + d.totalScore, 0) / 3;
+
+          if (avg < 50) {
+            await addOrUpdateRedFlag({
+              userId: user._id,
+              type: "Low Performance",
+              severity: avg < 30 ? "high" : "medium",
+              tags: ["Performance"],
+              reason: `3-day average performance dropped to ${Math.round(
+                avg
+              )}/100`,
+              date: new Date() // today IST
+            });
+          }
+        }
+      }
+
+      console.log("✅ Performance CRON completed successfully");
+    } catch (err) {
+      console.error("❌ Performance CRON Failed", err);
+    }
+  },
+  {
     timezone: "Asia/Kolkata"
-  });
+  }
+);
