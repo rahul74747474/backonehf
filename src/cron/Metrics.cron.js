@@ -5,7 +5,7 @@ import { User } from "../models/Employee.models.js";
 import { Metrics } from "../models/MetricsSchema.models.js";
 import { Attendance } from "../models/Attendance.models.js";
 
-cron.schedule("20 0 * * *", async () => {
+cron.schedule("50 00 * * *", async () => {
   console.log("Running Daily Metrics Job...");
 
  
@@ -50,4 +50,7 @@ cron.schedule("20 0 * * *", async () => {
   });
 
   console.log("Metrics recorded for:", endOfYesterday.toDateString());
-});
+},
+ {
+    timezone: "Asia/Kolkata"
+  });

@@ -21,7 +21,7 @@ const getWorkingDaysBetween = (fromDate, toDate) => {
   return count;
 };
 
-cron.schedule("20 00 * * *", async () => {
+cron.schedule("50 00 * * *", async () => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -59,4 +59,7 @@ cron.schedule("20 00 * * *", async () => {
   } catch (err) {
     console.error("Inactive User CRON Failed", err);
   }
-});
+},
+ {
+    timezone: "Asia/Kolkata"
+  });

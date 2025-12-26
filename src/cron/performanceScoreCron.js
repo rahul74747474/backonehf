@@ -6,7 +6,7 @@ import { Attendance } from "../models/Attendance.models.js";
 import { PerformanceScore } from "../models/PerformanceScore.models.js";
 import { addOrUpdateRedFlag } from "./addRedFlags.js";
 
-cron.schedule("20 00 * * *", async () => {
+cron.schedule("50 00 * * *", async () => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -105,4 +105,7 @@ cron.schedule("20 00 * * *", async () => {
   } catch (err) {
     console.error("❌ Performance CRON Failed", err);
   }
-});
+},
+ {
+    timezone: "Asia/Kolkata"
+  });

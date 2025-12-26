@@ -16,7 +16,7 @@ const isWeekend = (date) => {
   return day === 0 || day === 6;
 };
 
-cron.schedule("20 00 * * *", async () => {
+cron.schedule("50 00 * * *", async () => {
   console.log("🚀 Missed Report CRON Started");
 
   try {
@@ -79,4 +79,7 @@ cron.schedule("20 00 * * *", async () => {
   } catch (err) {
     console.error("❌ Missed Report CRON Failed", err);
   }
-});
+},
+ {
+    timezone: "Asia/Kolkata"
+  });

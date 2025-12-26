@@ -19,4 +19,7 @@ cron.schedule("20 0 * * *", async () => {
   } catch (error) {
     console.error("❌ Cron error while clearing recentActivity:", error.message);
   }
-});
+},
+ {
+    timezone: "Asia/Kolkata"
+  });
