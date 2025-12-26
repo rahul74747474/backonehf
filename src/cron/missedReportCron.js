@@ -1,43 +1,50 @@
 import cron from "node-cron";
 import { User } from "../models/Employee.models.js";
-import { Task } from "../models/Task.models.js";
 import { Report } from "../models/Reports.models.js";
-import { Attendance } from "../models/Attendance.models.js";
-import { PerformanceScore } from "../models/PerformanceScore.models.js";
 import { addOrUpdateRedFlag } from "./addRedFlags.js";
 
 /* =========================
-   IST DATE HELPERS
+   IST HELPERS
 ========================= */
-const getYesterdayISTRange = () => {
-  const nowIST = new Date(
+const getTodayIST = () => {
+  const ist = new Date(
     new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
   );
+  ist.setHours(0, 0, 0, 0);
+  return ist;
+};
 
-  const yesterday = new Date(nowIST);
-  yesterday.setDate(yesterday.getDate() - 1);
-  yesterday.setHours(0, 0, 0, 0);
+const isWeekendIST = (date) => {
+  const ist = new Date(
+    date.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
+  const day = ist.getDay();
+  return day === 0 || day === 6;
+};
 
-  const dayStart = new Date(yesterday);
-  const dayEnd = new Date(yesterday);
-  dayEnd.setHours(23, 59, 59, 999);
+const getISTDayRangeUTC = (istDate) => {
+  const startIST = new Date(istDate);
+  startIST.setHours(0, 0, 0, 0);
 
-  return { yesterday, dayStart, dayEnd };
+  const endIST = new Date(istDate);
+  endIST.setHours(23, 59, 59, 999);
+
+  return {
+    startUTC: new Date(startIST.getTime() - 5.5 * 60 * 60 * 1000),
+    endUTC: new Date(endIST.getTime() - 5.5 * 60 * 60 * 1000)
+  };
 };
 
 /* =========================
    CRON
 ========================= */
 cron.schedule(
-  "30 01 * * *",
+  "55 01 * * *",
   async () => {
-    try {
-      const { yesterday, dayStart, dayEnd } = getYesterdayISTRange();
+    console.log("🚀 Missed Report CRON Started");
 
-      console.log(
-        "📅 Scoring date (IST):",
-        yesterday.toLocaleDateString("en-IN")
-      );
+    try {
+      const todayIST = getTodayIST();
 
       const users = await User.find(
         { "designation.name": { $ne: "Administrator" } },
@@ -45,112 +52,48 @@ cron.schedule(
       );
 
       for (const user of users) {
-        /* =========================
-           TASK SCORE
-        ========================= */
-        const tasks = await Task.find({
-          assignedto: user._id,
-          dueAt: { $gte: dayStart, $lte: dayEnd }
-        });
+        let missedCount = 0;
+        let cursorIST = new Date(todayIST);
 
-        const completed = tasks.filter(
-          (t) => t.status === "Completed"
-        ).length;
+        while (true) {
+          cursorIST.setDate(cursorIST.getDate() - 1);
 
-        let taskScore = 0;
-        if (tasks.length) {
-          const ratio = completed / tasks.length;
-          taskScore =
-            ratio === 1
-              ? 40
-              : ratio >= 0.75
-              ? 30
-              : ratio >= 0.5
-              ? 20
-              : ratio > 0
-              ? 10
-              : 0;
+          // ✅ skip weekends
+          if (isWeekendIST(cursorIST)) continue;
+
+          const { startUTC, endUTC } =
+            getISTDayRangeUTC(cursorIST);
+
+          const reportExists = await Report.exists({
+            user: user._id,
+            date: { $gte: startUTC, $lte: endUTC }
+          });
+
+          // chain breaks if report found
+          if (reportExists) break;
+
+          missedCount++;
+
+          // only care about 3+
+          if (missedCount >= 3) break;
         }
 
-        /* =========================
-           REPORT SCORE
-        ========================= */
-        const reportScore = (await Report.exists({
-          user: user._id,
-          date: { $gte: dayStart, $lte: dayEnd }
-        }))
-          ? 20
-          : 0;
-
-        /* =========================
-           ATTENDANCE SCORE
-        ========================= */
-        const attendanceScore = (await Attendance.exists({
-          user: user._id,
-          date: { $gte: dayStart, $lte: dayEnd }
-        }))
-          ? 25
-          : 0;
-
-        const totalScore =
-          taskScore + reportScore + attendanceScore;
-
-        /* =========================
-           UPSERT PERFORMANCE SCORE
-        ========================= */
-        await PerformanceScore.findOneAndUpdate(
-          {
+        // 🔥 add red flag ONLY if 3+ consecutive
+        if (missedCount >= 3) {
+          await addOrUpdateRedFlag({
             userId: user._id,
-            date: yesterday,
-            period: "daily"
-          },
-          {
-            $set: {
-              scores: {
-                tasks: taskScore,
-                reports: reportScore,
-                attendance: attendanceScore
-              },
-              totalScore
-            }
-          },
-          { upsert: true }
-        );
-
-        /* =========================
-           LAST 3 DAYS AVG CHECK
-        ========================= */
-        const fromDate = new Date(yesterday);
-        fromDate.setDate(fromDate.getDate() - 2);
-
-        const last3 = await PerformanceScore.find({
-          userId: user._id,
-          period: "daily",
-          date: { $gte: fromDate, $lte: yesterday }
-        });
-
-        if (last3.length === 3) {
-          const avg =
-            last3.reduce((s, d) => s + d.totalScore, 0) / 3;
-
-          if (avg < 50) {
-            await addOrUpdateRedFlag({
-              userId: user._id,
-              type: "Low Performance",
-              severity: avg < 30 ? "high" : "medium",
-              tags: ["Performance"],
-              reason: `3-day average performance dropped to ${Math.round(
-                avg
-              )}/100`,
-              date: new Date() // today IST
-            });
-          }
+            type: "Missed Report",
+            severity: "medium",
+            tags: ["Report"],
+            reason: `Missed daily report for ${missedCount} consecutive working days`,
+            date: new Date() // UTC now
+          });
         }
       }
 
-      console.log("✅ Performance CRON completed successfully");
+      console.log("✅ Missed Report CRON Completed");
     } catch (err) {
-      console.error("❌ Performance CRON Failed", err);
+      console.error("❌ Missed Report CRON Failed", err);
     }
   },
   {
