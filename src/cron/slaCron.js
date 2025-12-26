@@ -1,73 +1,90 @@
 import cron from "node-cron";
+import { DateTime } from "luxon";
+
 import { Task } from "../models/Task.models.js";
 import { SLA } from "../models/MetricsSchema.models.js";
 
-const getYesterdayRange = () => {
-  const start = new Date();
-  start.setDate(start.getDate() - 1);
-  start.setHours(0, 0, 0, 0);
 
-  const end = new Date(start);
-  end.setHours(23, 59, 59, 999);
 
-  return { start, end };
+const COMPANY_TIMEZONE = "Asia/Kolkata";
+
+
+
+const getYesterdayRangeUTC = () => {
+  const start = DateTime.now()
+    .setZone(COMPANY_TIMEZONE)
+    .startOf("day")
+    .minus({ days: 1 });
+
+  const end = start.endOf("day");
+
+  return {
+    startUTC: start.toUTC().toJSDate(),
+    endUTC: end.toUTC().toJSDate(),
+    dateString: start.toISODate() 
+  };
 };
 
-const getLocalDateString = (date) => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
 
-cron.schedule("00 0 * * *", async () => {
-  console.log("Daily SLA CRON Running...");
 
-  const { start, end } = getYesterdayRange();
-  const date = getLocalDateString(start); 
+cron.schedule(
+  "40 2 * * *",
+  async () => {
+    console.log(" Daily SLA CRON Running...");
 
-  const completedTasks = await Task.find({
-    completedAt: { $gte: start, $lte: end }
-  });
+    try {
+      const { startUTC, endUTC, dateString } =
+        getYesterdayRangeUTC();
 
-  if (completedTasks.length === 0) {
-    await SLA.create({
-      date,
-      onTime: 0,
-      overdue: 0,
-      slaPercentage: 100,
-      type: "Excellent"
-    });
+      const completedTasks = await Task.find({
+        completedAt: { $gte: startUTC, $lte: endUTC }
+      });
 
-    console.log(` No tasks on ${date}, SLA marked Excellent`);
-    return;
+      if (completedTasks.length === 0) {
+        await SLA.create({
+          date: dateString,
+          onTime: 0,
+          overdue: 0,
+          slaPercentage: 100,
+          type: "Excellent"
+        });
+
+        console.log(` No tasks on ${dateString}, SLA marked Excellent`);
+        return;
+      }
+
+      let onTime = 0;
+      let overdue = 0;
+
+      completedTasks.forEach((task) => {
+        task.completedAt <= task.dueAt ? onTime++ : overdue++;
+      });
+
+      const slaPercentage = Math.round(
+        (onTime / completedTasks.length) * 100
+      );
+
+      let type = "Excellent";
+      if (slaPercentage < 50) type = "Critical";
+      else if (slaPercentage < 75) type = "Warning";
+      else if (slaPercentage < 90) type = "Good";
+
+      await SLA.create({
+        date: dateString,
+        onTime,
+        overdue,
+        slaPercentage,
+        type
+      });
+
+      console.log(
+        ` SLA saved for ${dateString} → ${slaPercentage}% (${type})`
+      );
+    } catch (err) {
+      console.error(" Daily SLA CRON Failed", err);
+    }
+  },
+  {
+    timezone: COMPANY_TIMEZONE 
   }
-
-  let onTime = 0;
-  let overdue = 0;
-
-  completedTasks.forEach(task => {
-    task.completedAt <= task.dueAt ? onTime++ : overdue++;
-  });
-
-  const slaPercentage = Math.round(
-    (onTime / completedTasks.length) * 100
-  );
-
-  let type = "Excellent";
-  if (slaPercentage < 50) type = "Critical";
-  else if (slaPercentage < 75) type = "Warning";
-  else if (slaPercentage < 90) type = "Good";
-
-  await SLA.create({
-    date,
-    onTime,
-    overdue,
-    slaPercentage,
-    type
-  });
-
-  console.log(
-    ` SLA saved for ${date} → ${slaPercentage}% (${type})`
-  );
-});
+);

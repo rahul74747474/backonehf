@@ -1,7 +1,7 @@
 import cron from "node-cron";
 import { User } from "../models/Employee.models.js";
 
-cron.schedule("00 0 * * *", async () => {
+cron.schedule("10 2 * * *", async () => {
   try {
     const users = await User.find({ recentActivity: { $exists: true, $ne: [] } });
 

@@ -3,63 +3,80 @@ import { User } from "../models/Employee.models.js";
 import { Report } from "../models/Reports.models.js";
 import { addOrUpdateRedFlag } from "./addRedFlags.js";
 
+const EXCLUDED_DESIGNATIONS = ["Administrator"];
+
+const getToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
 
 const isWeekend = (date) => {
-  const d = date.getDay();
-  return d === 0 || d === 6;
+  const day = date.getDay();
+  return day === 0 || day === 6;
 };
 
+cron.schedule("43 4 * * *", async () => {
+  console.log("🚀 Missed Report CRON Started");
 
-const getMissedWorkingDays = async (userId, today) => {
-  let missed = 0;
-  let cursor = new Date(today);
+  try {
+    const today = getToday();
 
-  while (missed < 5) {
-    cursor.setDate(cursor.getDate() - 1);
+    const users = await User.find(
+      {
+        "designation.name": { $ne: "Administrator" },
+        "onboarding.completedAt": { $exists: true } // 🔥 onboarding completed only
+      },
+      "_id onboarding"
+    );
 
-    if (isWeekend(cursor)) continue;
+    for (const user of users) {
+      let missedCount = 0;
+      let cursor = new Date(today);
 
-    const start = new Date(cursor);
-    start.setHours(0, 0, 0, 0);
+      while (missedCount < 3) {
+        cursor.setDate(cursor.getDate() - 1);
 
-    const end = new Date(cursor);
-    end.setHours(23, 59, 59, 999);
+        if (isWeekend(cursor)) continue;
 
-    const report = await Report.findOne({
-      user: userId,
-      date: { $gte: start, $lte: end }
-    });
+        // 🔥 onboarding guard
+        if (
+          user.onboarding?.completedAt &&
+          cursor < new Date(user.onboarding.completedAt)
+        ) {
+          break;
+        }
 
-    if (report) break; 
+        const dayStart = new Date(cursor);
+        dayStart.setHours(0, 0, 0, 0);
 
-    missed++;
-  }
+        const dayEnd = new Date(cursor);
+        dayEnd.setHours(23, 59, 59, 999);
 
-  return missed;
-};
+        const reportExists = await Report.exists({
+          user: user._id,
+          date: { $gte: dayStart, $lte: dayEnd }
+        });
 
-cron.schedule("00 0 * * *", async () => {
-  console.log(" Missed Report CRON Running...");
+        if (reportExists) break;
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+        missedCount++;
+      }
 
-  const users = await User.find({}, "_id name");
-
-  for (const user of users) {
-    const missedDays = await getMissedWorkingDays(user._id, today);
-
-    if (missedDays >= 2) {
-      await addOrUpdateRedFlag({
-        userId: user._id,
-        type: "Missed Report",
-        severity: missedDays >= 4 ? "high" : "medium",
-        tags: ["Missed Report"],
-        reason: `Missed daily report for ${missedDays} consecutive working days`,
-        date: today
-      });
+      if (missedCount >= 3) {
+        await addOrUpdateRedFlag({
+          userId: user._id,
+          type: "Missed Report",
+          severity: "medium",
+          tags: ["Report"],
+          reason: `Missed daily report for ${missedCount} consecutive working days`,
+          date: today
+        });
+      }
     }
-  }
 
-  console.log(" Missed Report CRON Completed");
+    console.log("✅ Missed Report CRON Completed");
+  } catch (err) {
+    console.error("❌ Missed Report CRON Failed", err);
+  }
 });

@@ -659,6 +659,15 @@ const assigntask = asynchandler(async (req, res) => {
   }
 
  project.tasks = task
+ if(!project.recentActivity){
+  project.recentActivity = []
+ }
+ project.recentActivity.push({
+  title:"Created Task",
+  refs:task._id,
+  user:user.name,
+  time:Date.now()
+ })
  await project.save(
   {validateBeforeSave:false}
  )
@@ -676,7 +685,7 @@ const updatetask = asynchandler(async (req, res) => {
   if (!id) {
     throw new Apierror(400, "Task id is required");
   }
-  const updatedby = await User.find(userid)
+  const updatedby = await User.findById(userid)
 
   if(!updatedby){
     throw new Apierror(404,"User not authorized")
@@ -685,6 +694,10 @@ const updatetask = asynchandler(async (req, res) => {
   const task = await Task.findById(id);
   if (!task) {
     throw new Apierror(404, "No task found with this id");
+  }
+  const project = await Project.findById(task.projectId)
+  if(!project){
+    throw new Apierror(404,"No Project Found")
   }
 
   if(task.status === "Completed" && status !== "Completed" && status){
@@ -698,6 +711,13 @@ const updatetask = asynchandler(async (req, res) => {
       title: `Status updated to ${status}`,
       timeat: Date.now()
     });
+    project.recentActivity.push({
+      title:`Changed Task Status to ${status}`,
+      refs:id,
+      user:updatedby.name,
+      time:Date.now()
+    })
+    
   }
   else if(status && status !== task.status) {
     task.status = status;
@@ -709,7 +729,15 @@ const updatetask = asynchandler(async (req, res) => {
       title: `Status updated to ${status}`,
       timeat: Date.now()
     });
+    project.recentActivity.push({
+      title:`Changed Task Status to ${status}`,
+      refs:id,
+      user:updatedby.name,
+      time:Date.now()
+    })
   }
+
+
 
   if (priority && priority !== task.priority) {
     task.priority = priority;
@@ -721,6 +749,12 @@ const updatetask = asynchandler(async (req, res) => {
       title: `Priority updated to ${priority}`,
       timeat: Date.now()
     });
+    project.recentActivity.push({
+      title:`Changed Task Priority to ${priority}`,
+      refs:id,
+      user:updatedby.name,
+      time:Date.now()
+    })
   }
 
   if (employeeid && String(task.assignedto) !== String(employeeid)) {
@@ -738,6 +772,12 @@ const updatetask = asynchandler(async (req, res) => {
       title: `Allotted to ${employee.name}`,
       timeat: Date.now()
     });
+    project.recentActivity.push({
+      title:`Changed Task assignee to ${employee.name}`,
+      refs:id,
+      user:updatedby.name,
+      time:Date.now()
+    })
   }
 
   const toDateOnly = (d) => {
@@ -760,9 +800,15 @@ const updatetask = asynchandler(async (req, res) => {
     title: "Deadline updated",
     timeat: Date.now()
   });
+  project.recentActivity.push({
+      title:`Extended Task deu date to ${dueAt}`,
+      refs:id,
+      user:updatedby.name,
+      time:Date.now()
+    })
 }
 
-
+  await project.save({validateBeforeSave:false})
   const updatedtask = await task.save({ validateBeforeSave: false });
 
   res
@@ -772,7 +818,7 @@ const updatetask = asynchandler(async (req, res) => {
 
 
 const addproject = asynchandler(async (req, res) => {
-
+  const user = req.user;
   const {
     projectname,
     description,
@@ -806,8 +852,14 @@ const addproject = asynchandler(async (req, res) => {
     },
     progress: { percent: 0, status: "Pending" },
     risks: [],
-
   });
+  project.recentActivity=[{
+      title:"Created Project",
+      refs:project._id,
+      user:user.name,
+      time:Date.now()
+    }]
+    await project.save({validateBeforeSave:false})
 
   
   for (const member of team) {
@@ -815,6 +867,7 @@ const addproject = asynchandler(async (req, res) => {
       $push: { Projects: project._id }
     });
   }
+
 
   res.status(201).json(
     new Apiresponse(201, "Project created successfully", project)
@@ -851,9 +904,15 @@ const createissue = asynchandler(async(req,res)=>{
     raisedon:Date.now(),
     raisedby:employee._id
 })
+project.recentActivity.push({
+  title:"Raised an Issue",
+  refs:null,
+  user:employee.name,
+  time:Date.now()
+})
 const newproject = await project.save({validateBeforeSave:false})
 res.status(200)
-.json(new Apiresponse(201,"Risks Added Successfully".newproject))
+.json(new Apiresponse(201,"Risks Added Successfully",newproject))
    
 })
 
@@ -933,6 +992,7 @@ const updateProject = asynchandler(async (req, res) => {
     enddate,
     team,
   } = req.body;
+  const user = req.user
 
  
   if (!projectId) {
@@ -991,6 +1051,12 @@ const updateProject = asynchandler(async (req, res) => {
 
   existingProject.team.assignedMembers = team;
 
+ existingProject.recentActivity.push({
+  title:"Updated Project Details",
+  refs:existingProject._id,
+  user:user.name,
+  time:Date.now()
+ })
   const updated = await existingProject.save();
 
   res.status(200).json(

@@ -8,6 +8,7 @@ import { asynchandler } from "../utils/Asynchandler.utils.js";
 import { Attendance } from "../models/Attendance.models.js";
 import { Report } from "../models/Reports.models.js";
 import { Announcement } from "../models/Announcement.models.js";
+import { Project } from "../models/Project.models.js";
 
 
 
@@ -77,6 +78,11 @@ const taskcompleted = asynchandler(async(req,res)=>{
   }
 
   const task = await Task.findById(taskid)
+  const project = await Project.findById(task.projectId)
+    if(!project){
+      throw new Apierror(404,"No Project Found")
+    }
+  
 
   if(!task){
     throw new Apierror(404,"Task not Found")
@@ -86,6 +92,15 @@ const taskcompleted = asynchandler(async(req,res)=>{
   task.completedAt = Date.now()
 
   await task.save({validateBeforeSave:false})
+
+  project.recentActivity.push({
+    title:"Completed the task",
+    refs:taskid,
+    user:user.name,
+    time:Date.now()
+  })
+
+  await project.save({validateBeforeSave:false})
 
   const employee = await User.findById(user._id)
   if(!employee){
@@ -249,11 +264,16 @@ export const uploadTaskAttachment = asynchandler(async (req, res) => {
     throw new Apierror(404, "Task not found");
   }
 
+  const project = await Project.findById(task.projectId)
+    if(!project){
+      throw new Apierror(404,"No Project Found")
+    }
+
   // Upload to Cloudinary
   const uploaded = await uploadToCloudinary(
     req.file.buffer,
     "prism/tasks",
-    `${taskId}-${Date.now()}`
+    `${task.title}-${Date.now()}`
   );
 
   // Save file URL in schema (dependencies.files)
@@ -276,6 +296,15 @@ export const uploadTaskAttachment = asynchandler(async (req, res) => {
 
   await employee.save({ validateBeforeSave: false });
 
+  project.recentActivity.push({
+    title:`Added Attachment ${req.file.originalname}`,
+    refs:task._id,
+    user:user.name,
+    time:Date.now()
+  })
+
+  await project.save({validateBeforeSave:false})
+
 
   res.status(201).json(
     new Apiresponse(201, "Attachment uploaded successfully", {
@@ -294,6 +323,10 @@ const sendcomment = asynchandler(async(req,res)=>{
 
   const task = await Task.findById(taskid)
   const user = await User.findById(userid)
+  const project = await Project.findById(task.projectId)
+    if(!project){
+      throw new Apierror(404,"No Project Found")
+    }
 
   if(!task || !user){
     throw new Apierror(400,"Task or User not found")
@@ -319,6 +352,14 @@ const sendcomment = asynchandler(async(req,res)=>{
   })
 
   await user.save({ validateBeforeSave: false });
+  project.recentActivity.push({
+    title:"Commented on",
+    refs:task._id,
+    user:user.name,
+    time:Date.now()
+  })
+
+  await project.save({validateBeforeSave:false})
 
 
   res.status(200)
@@ -335,6 +376,10 @@ const completetask = asynchandler(async(req,res)=>{
 
   const task = await Task.findById(taskid)
   const user = await User.findById(userid)
+  const project = await Project.findById(task.projectId)
+    if(!project){
+      throw new Apierror(404,"No Project Found")
+    }
 
   if(!task || !user){
     throw new Apierror(400,"Task or User not found")
@@ -356,6 +401,14 @@ const completetask = asynchandler(async(req,res)=>{
   })
 
   await user.save({ validateBeforeSave: false });
+  project.recentActivity.push({
+    title:"Completed Task",
+    refs:task._id,
+    user:user.name,
+    time:Date.now()
+  })
+
+  await project.save({validateBeforeSave:false})
 
   res.status(200)
   .json(new Apiresponse(201,"Task Completed Successfully",task))
@@ -371,6 +424,10 @@ const reviewtask = asynchandler(async(req,res)=>{
 
   const task = await Task.findById(taskid)
   const user = await User.findById(userid)
+  const project = await Project.findById(task.projectId)
+    if(!project){
+      throw new Apierror(404,"No Project Found")
+    }
 
   if(!task || !user){
     throw new Apierror(400,"Task or User not found")
@@ -391,6 +448,15 @@ const reviewtask = asynchandler(async(req,res)=>{
   })
 
   await user.save({ validateBeforeSave: false });
+
+  project.recentActivity.push({
+    title:"Pushed the Task for Review",
+    refs:task._id,
+    user:user.name,
+    time:Date.now()
+  })
+
+  await project.save({validateBeforeSave:false})
 
 
   res.status(200)
@@ -528,5 +594,74 @@ const punchout = asynchandler(async(req,res)=>{
   }
 })
 
+const updatetask = asynchandler(async (req, res) => {
+  const { id } = req.params;
+  const userid = req.user._id;
+  const { status } = req.body;
 
-export {employeelogin,getuser,taskcompleted,acknowledge,punchout,startAttendance,reviewtask,sendcomment,completetask,submitreport}
+  if (!id) {
+    throw new Apierror(400, "Task id is required");
+  }
+  const updatedby = await User.findById(userid)
+
+  if(!updatedby){
+    throw new Apierror(404,"User not authorized")
+  }
+ const task = await Task.findById(id);
+
+  if (!task) {
+    throw new Apierror(404, "No task found with this id");
+  }
+  const project = await Project.findById(task.projectId)
+    if(!project){
+      throw new Apierror(404,"No Project Found")
+    }
+
+  if(task.status === "Completed" && status !== "Completed" && status){
+      task.status = status;
+      task.completedAt = null
+    if (!Array.isArray(task.history)) {
+  task.history = [];
+}
+    task.history.push({
+      actionby: updatedby.name,
+      title: `Status updated to ${status}`,
+      timeat: Date.now()
+    });
+
+  }
+  else if(status && status !== task.status) {
+    task.status = status;
+    if (!Array.isArray(task.history)) {
+  task.history = [];
+}
+    task.history.push({
+      actionby: updatedby.name,
+      title: `Status updated to ${status}`,
+      timeat: Date.now()
+    });
+  }
+   updatedby.recentActivity.push({
+         name :`Task Status Updated to ${status}`,
+         refs:id,
+         time:Date.now()
+      })
+
+     project.recentActivity.push({
+    title:`Task Status Updated to ${status}`,
+    refs:task._id,
+    user:updatedby.name,
+    time:Date.now()
+  })
+
+  await project.save({validateBeforeSave:false})
+  const updatedtask = await task.save({ validateBeforeSave: false });
+  await updatedby.save({validateBeforeSave:false})
+
+  res
+    .status(200)
+    .json(new Apiresponse(200, "Task updated successfully", updatedtask));
+});
+
+
+export {employeelogin,getuser,taskcompleted,acknowledge,updatetask,punchout,startAttendance,reviewtask,sendcomment,completetask,submitreport}

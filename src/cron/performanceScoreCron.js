@@ -6,122 +6,103 @@ import { Attendance } from "../models/Attendance.models.js";
 import { PerformanceScore } from "../models/PerformanceScore.models.js";
 import { addOrUpdateRedFlag } from "./addRedFlags.js";
 
+cron.schedule("39 4 * * *", async () => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-const isWeekend = d => d.getDay() === 0 || d.getDay() === 6;
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
-const getWorkingDate = () => {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  while (isWeekend(d)) d.setDate(d.getDate() - 1);
-  d.setHours(0, 0, 0, 0);
-  return d;
-};
+    const dayStart = new Date(yesterday);
+    dayStart.setHours(0, 0, 0, 0);
 
-cron.schedule("00 0 * * *", async () => {
-  console.log("Daily Performance CRON Running...");
+    const dayEnd = new Date(yesterday);
+    dayEnd.setHours(23, 59, 59, 999);
 
-  const date = getWorkingDate();
-  const start = new Date(date);
-  const end = new Date(date);
-  end.setHours(23, 59, 59, 999);
+    const users = await User.find(
+      { "designation.name": { $ne: "Administrator" } },
+      "_id"
+    );
 
-  const users = await User.find({}, "_id name");
+    for (const user of users) {
 
-  for (const user of users) {
-
-    const todaysTasks = await Task.find({
-      assignedto: user._id,
-      dueAt: { $gte: start, $lte: end }
-    });
-
-    const completedTasks = todaysTasks.filter(
-      t => t.status === "Completed"
-    ).length;
-
-    let taskScore = 0;
-    if (todaysTasks.length) {
-      const ratio = completedTasks / todaysTasks.length;
-      taskScore =
-        ratio === 1 ? 40 :
-        ratio >= 0.75 ? 30 :
-        ratio >= 0.5 ? 20 :
-        ratio > 0 ? 10 : 0;
-    }
-
-    
-    const report = await Report.findOne({
-      user: user._id,
-      date: { $gte: start, $lte: end }
-    });
-    const reportScore = report ? 20 : 0;
-
-    
-    const attendance = await Attendance.findOne({
-      user: user._id,
-      date: { $gte: start, $lte: end }
-    });
-    const attendanceScore = attendance ? 25 : 0;
-
-    
-    let consistency = 0;
-    let daysChecked = 0;
-    let cursor = new Date(start);
-
-    while (daysChecked < 5) {
-      cursor.setDate(cursor.getDate() - 1);
-      if (isWeekend(cursor)) continue;
-
-      const hasCompletedTask = await Task.exists({
+      // ✅ TASK SCORE (same as before)
+      const tasks = await Task.find({
         assignedto: user._id,
-        completedAt: {
-          $gte: new Date(cursor.setHours(0,0,0,0)),
-          $lte: new Date(cursor.setHours(23,59,59,999))
-        }
+        dueAt: { $gte: dayStart, $lte: dayEnd }
       });
 
-      if (hasCompletedTask) consistency++;
-      daysChecked++;
-    }
+      const completed = tasks.filter(t => t.status === "Completed").length;
 
-    const consistencyScore =
-      consistency === 5 ? 15 :
-      consistency === 4 ? 12 :
-      consistency === 3 ? 8 : 0;
+      let taskScore = 0;
+      if (tasks.length) {
+        const ratio = completed / tasks.length;
+        taskScore =
+          ratio === 1 ? 40 :
+          ratio >= 0.75 ? 30 :
+          ratio >= 0.5 ? 20 :
+          ratio > 0 ? 10 : 0;
+      }
 
-    
-    const totalScore =
-      taskScore +
-      reportScore +
-      attendanceScore +
-      consistencyScore;
+      // ✅ FIXED REPORT SCORE
+      const reportScore = await Report.exists({
+        user: user._id,
+        date: { $gte: dayStart, $lte: dayEnd }
+      }) ? 20 : 0;
 
- 
-    if (totalScore < 60) {
-      await addOrUpdateRedFlag({
+      // ✅ FIXED ATTENDANCE SCORE
+      const attendanceScore = await Attendance.exists({
+        user: user._id,
+        date: { $gte: dayStart, $lte: dayEnd }
+      }) ? 25 : 0;
+
+      const totalScore = taskScore + reportScore + attendanceScore;
+
+      await PerformanceScore.findOneAndUpdate(
+        { userId: user._id, date: yesterday, period: "daily" },
+        {
+          $set: {
+            scores: {
+              tasks: taskScore,
+              reports: reportScore,
+              attendance: attendanceScore
+            },
+            totalScore
+          }
+        },
+        { upsert: true }
+      );
+
+      // ✅ LAST 3 DAYS AVERAGE (same logic)
+      const fromDate = new Date(yesterday);
+      fromDate.setDate(fromDate.getDate() - 2);
+
+      const last3 = await PerformanceScore.find({
         userId: user._id,
-        type: "Low Performance",
-        severity: totalScore < 40 ? "high" : "medium",
-        tags: ["Performance"],
-        reason: `Daily performance dropped to ${totalScore}/100`,
-        date: start
+        period: "daily",
+        date: { $gte: fromDate, $lte: yesterday }
       });
+
+      if (last3.length === 3) {
+        const avg =
+          last3.reduce((s, d) => s + d.totalScore, 0) / 3;
+
+        if (avg < 50) {
+          await addOrUpdateRedFlag({
+            userId: user._id,
+            type: "Low Performance",
+            severity: avg < 30 ? "high" : "medium",
+            tags: ["Performance"],
+            reason: `3-day average performance dropped to ${Math.round(avg)}/100`,
+            date: today
+          });
+        }
+      }
     }
 
-    await PerformanceScore.create({
-      userId: user._id,
-      period: "daily",
-      date: start,
-      scores: {
-        tasks: taskScore,
-        reports: reportScore,
-        attendance: attendanceScore,
-        consistency: consistencyScore
-      },
-      totalScore
-    });
-
-    console.log(`Performance saved for ${user.name}`);
+    console.log("✅ Performance CRON completed successfully");
+  } catch (err) {
+    console.error("❌ Performance CRON Failed", err);
   }
-
-  console.log("Daily Performance CRON Completed");
 });

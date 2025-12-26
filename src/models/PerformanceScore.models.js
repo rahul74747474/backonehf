@@ -43,6 +43,9 @@ const ScoreSchema = mongoose.Schema({
     type: Number, 
     default: 0 
 },
+date:{
+  type:Date,
+},
 
   createdAt: { 
     type: Date, 

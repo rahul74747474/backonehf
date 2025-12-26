@@ -2,7 +2,7 @@ import mongoose from "mongoose"
 
 const MetricsSchema = mongoose.Schema({
      date: {
-    type: String, 
+    type: Date, 
     required: true,
     unique: true
   },
@@ -49,13 +49,13 @@ const RedFlagSchema = new mongoose.Schema({
     default: []
   },
 
-  date: String,
+  date: Date,
 });
 
 export const RedFlag = mongoose.model("RedFlag", RedFlagSchema);
 
 const SLASchema = new mongoose.Schema({
-  date: String,
+  date: Date,
   onTime: Number,
   overdue: Number,
   slaPercentage: Number,

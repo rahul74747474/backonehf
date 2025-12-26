@@ -5,7 +5,7 @@ import { User } from "../models/Employee.models.js";
 import { Metrics } from "../models/MetricsSchema.models.js";
 import { Attendance } from "../models/Attendance.models.js";
 
-cron.schedule("00 0 * * *", async () => {
+cron.schedule("01 0 * * *", async () => {
   console.log("Running Daily Metrics Job...");
 
  
@@ -43,11 +43,11 @@ cron.schedule("00 0 * * *", async () => {
   });
 
   await Metrics.create({
-    date: startOfYesterday, 
+    date: endOfYesterday, 
     tasksCompleted,
     reportsSubmitted,
     activeUsers
   });
 
-  console.log("Metrics recorded for:", startOfYesterday.toDateString());
+  console.log("Metrics recorded for:", endOfYesterday.toDateString());
 });

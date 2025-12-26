@@ -93,6 +93,32 @@ const ProjectSchema = new mongoose.Schema({
     type:Number,
     default:0
   },
+  recentActivity:[{
+    title:{
+      type:String,
+      default:""
+    },
+    refModel: {
+          type: String,
+          enum: ["Task", "Report", "Token", "Project"],
+          default: null,  
+        },
+    
+       
+        refs: {
+          type: mongoose.Schema.Types.ObjectId,
+          refPath: "recentActivity.refModel",
+          default: null, 
+        },
+    user:{
+      type:String,
+      default:""
+    },
+    time:{
+      type:Date,
+      default:null
+    }
+  }],
 
   deleted: {
     type: Boolean,
