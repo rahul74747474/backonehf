@@ -21,7 +21,7 @@ const getWorkingDaysBetween = (fromDate, toDate) => {
   return count;
 };
 
-cron.schedule("30 4 * * *", async () => {
+cron.schedule("20 00 * * *", async () => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);

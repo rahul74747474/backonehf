@@ -16,7 +16,7 @@ const isWeekend = (date) => {
   return day === 0 || day === 6;
 };
 
-cron.schedule("43 4 * * *", async () => {
+cron.schedule("20 00 * * *", async () => {
   console.log("🚀 Missed Report CRON Started");
 
   try {

@@ -6,7 +6,7 @@ import { Attendance } from "../models/Attendance.models.js";
 import { PerformanceScore } from "../models/PerformanceScore.models.js";
 import { addOrUpdateRedFlag } from "./addRedFlags.js";
 
-cron.schedule("39 4 * * *", async () => {
+cron.schedule("20 00 * * *", async () => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
