@@ -631,6 +631,19 @@ const updatetask = asynchandler(async (req, res) => {
     });
 
   }
+  else if(task.status !== "Completed" && status === "Completed" && status){
+      task.status = status;
+      task.completedAt = Date.now()
+    if (!Array.isArray(task.history)) {
+  task.history = [];
+}
+    task.history.push({
+      actionby: updatedby.name,
+      title: `Status updated to ${status}`,
+      timeat: Date.now()
+    });
+
+  }
   else if(status && status !== task.status) {
     task.status = status;
     if (!Array.isArray(task.history)) {
