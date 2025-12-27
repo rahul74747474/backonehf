@@ -87,6 +87,10 @@ const TaskSchema = mongoose.Schema({
             type:Date,
             default:null
         }
+    }],
+    subtasks:[{
+        type:mongoose.Schema.Types.ObjectId,
+        ref:"Subtask"
     }]
 },{timestamps:true})
 

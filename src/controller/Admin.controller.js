@@ -1597,12 +1597,6 @@ export const getReportExports = async (req, res) => {
   res.json(exports);
 };
 
-
-
-
-
-
-
 export {addproject,createissue,createticket,logout,getuser,adminlogin,addemployee,updateemployee,scores,reports,sla,deleterole,attendance,getmetricsdata,getannouncements,assignticket,createAnnouncement,alltickets,addcomment,updatestatus,ticketdetail,getroles,updaterole,assignbulkrole,createrole,deleteTask,assigntask,updatetask,updateProject ,projectdetails,alltasks, allprojects,allemployees,redflags}
 
  

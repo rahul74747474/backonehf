@@ -9,6 +9,7 @@ import { Attendance } from "../models/Attendance.models.js";
 import { Report } from "../models/Reports.models.js";
 import { Announcement } from "../models/Announcement.models.js";
 import { Project } from "../models/Project.models.js";
+import { Subtask } from "../models/SubTasks.models.js";
 
 
 
@@ -662,6 +663,77 @@ const updatetask = asynchandler(async (req, res) => {
     .status(200)
     .json(new Apiresponse(200, "Task updated successfully", updatedtask));
 });
+const addsubtask = asynchandler(async(req,res)=>{
+   const {title,description,relatedtask} = req.body
+   const user = req.user
+
+   if(!title || !description || !relatedtask||!user){
+    throw new Apierror(404,"Please fill all the required fields")
+   }
+
+   const task = await Task.findById(relatedtask)
+   const employee = await User.findById(user._id)
+   const project = await Project.findById(task.projectId)
+
+   if(!task || !employee || !project){
+    throw new Apierror("Not found in database")
+   }
+
+   const subtask =await Subtask.create({
+     title:title,
+     description:description,
+     relatedtasks:relatedtask,
+     createdby:user._id,
+     createdAt:Date.now()
+   })
 
 
-export {employeelogin,getuser,taskcompleted,acknowledge,updatetask,punchout,startAttendance,reviewtask,sendcomment,completetask,submitreport}
+   if(!task.subtasks) task.subtasks = []
+
+   task.subtasks.push(subtask._id)
+     task.history.push({
+      actionby: employee.name,
+      title: `Sub Task Added for task ${task.title}`,
+      timeat: Date.now()
+    });
+
+    await task.save({validateBeforeSave:false})
+
+       project.recentActivity.push({
+    title:`Subtask Added for Task`,
+    refs:task._id,
+    user:employee.name,
+    time:Date.now()
+  })
+
+  await project.save({validateBeforeSave:false})
+
+   employee.recentActivity.push({
+         name :`Added Subtask for Task`,
+         refs:task._id,
+         time:Date.now()
+      })
+
+await employee.save({validateBeforeSave:false})
+
+  res
+    .status(200)
+    .json(new Apiresponse(200, "Sub-Task Added successfully", subtask));
+
+
+
+})
+
+const getsubtask =asynchandler(async(req,res)=>{
+  const subtask =await Subtask.find()
+
+  if(!subtask){
+    throw new Apierror(404,"Subtask not found")
+  }
+
+  res.status(200)
+  .json(new Apiresponse(201,"Subtask fetched successfully",subtask))
+})
+
+
+export {employeelogin,getuser,addsubtask,getsubtask,taskcompleted,acknowledge,updatetask,punchout,startAttendance,reviewtask,sendcomment,completetask,submitreport}

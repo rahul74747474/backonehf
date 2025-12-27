@@ -1,5 +1,5 @@
 import {Router} from "express"
-import { acknowledge, completetask, employeelogin, punchout, reviewtask, saveTime, sendcomment, startAttendance, submitreport, taskcompleted, updatetask, uploadTaskAttachment } from "../controller/Employee.controller.js"
+import { acknowledge, addsubtask, completetask, employeelogin, getsubtask, punchout, reviewtask, saveTime, sendcomment, startAttendance, submitreport, taskcompleted, updatetask, uploadTaskAttachment } from "../controller/Employee.controller.js"
 import { verifyjwt } from "../middleware/auth.middleware.js"
 import { getuser } from "../controller/Admin.controller.js"
 import { upload } from "../middleware/multer.middleware.js"
@@ -13,6 +13,7 @@ employeerouter.route("/save-time").post(saveTime)
 employeerouter.route("/punchout").post(punchout)
 employeerouter.route("/complete-task").post(completetask)
 employeerouter.route("/review-task").post(reviewtask)
+employeerouter.route("/addsubtask").post(verifyjwt,addsubtask)
 employeerouter.route("/acknowledged").post(acknowledge)
 employeerouter.route("/task/upload-attachment").post(verifyjwt,
   upload.single("file"),
@@ -27,6 +28,7 @@ employeerouter.route("/updatetask/:id").put(verifyjwt,updatetask)
 
 //get api
 employeerouter.route("/getuser").get(verifyjwt,getuser)
+employeerouter.route("/getsubtask").get(getsubtask)
 
 
 
