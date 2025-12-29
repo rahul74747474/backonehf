@@ -6,7 +6,7 @@ import { addOrUpdateRedFlag } from "./addRedFlags.js";
 const EXCLUDED_DESIGNATIONS = ["Administrator"];
 
 cron.schedule(
-  "55 01 * * *",
+  "10 00 * * *",
   async () => {
     try {
       const { istToday, utcToday } = getTodayIST_UTC();

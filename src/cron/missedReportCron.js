@@ -39,7 +39,7 @@ const getISTDayRangeUTC = (istDate) => {
    CRON
 ========================= */
 cron.schedule(
-  "55 01 * * *",
+  "10 00 * * *",
   async () => {
     console.log("🚀 Missed Report CRON Started");
 

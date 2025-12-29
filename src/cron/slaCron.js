@@ -28,7 +28,7 @@ const getYesterdayRangeUTC = () => {
 
 
 cron.schedule(
-  "50 0 * * *",
+  "50 00 * * *",
   async () => {
     console.log(" Daily SLA CRON Running...");
 

@@ -1,56 +1,73 @@
 import cron from "node-cron";
 import { Task } from "../models/Task.models.js";
 import { Report } from "../models/Reports.models.js";
-import { User } from "../models/Employee.models.js";
 import { Metrics } from "../models/MetricsSchema.models.js";
 import { Attendance } from "../models/Attendance.models.js";
 
-cron.schedule("55 01 * * *", async () => {
-  console.log("Running Daily Metrics Job...");
+const getISTDayRangeUTC = (date) => {
+  const startIST = new Date(date);
+  startIST.setHours(0, 0, 0, 0);
 
- 
-  const startOfYesterday = new Date();
-  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
-  startOfYesterday.setHours(0, 0, 0, 0);
+  const endIST = new Date(date);
+  endIST.setHours(23, 59, 59, 999);
 
-  const endOfYesterday = new Date();
-  endOfYesterday.setDate(endOfYesterday.getDate() - 1);
-  endOfYesterday.setHours(23, 59, 59, 999);
+  const offsetMs = 5.5 * 60 * 60 * 1000;
 
- 
-  const tasksCompleted = await Task.countDocuments({
-    status: "Completed",
-    completedAt: {
-      $gte: startOfYesterday,
-      $lte: endOfYesterday
+  return {
+    startUTC: new Date(startIST.getTime() - offsetMs),
+    endUTC: new Date(endIST.getTime() - offsetMs)
+  };
+};
+
+cron.schedule(
+  "30 03 * * *",
+  async () => {
+    console.log("🚀 Running Daily Metrics Job (IST Safe)");
+
+    try {
+      // 👉 Yesterday (IST)
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const { startUTC, endUTC } = getISTDayRangeUTC(yesterday);
+
+      // ✅ Tasks completed yesterday
+      const tasksCompleted = await Task.countDocuments({
+        status: "Completed",
+        completedAt: { $gte: startUTC, $lte: endUTC }
+      });
+
+      // ✅ Reports submitted yesterday
+      const reportsSubmitted = await Report.countDocuments({
+        createdAt: { $gte: startUTC, $lte: endUTC }
+      });
+
+      // ✅ Active users (attendance)
+      const activeUsers = await Attendance.countDocuments({
+        $or: [
+          { date: { $gte: startUTC, $lte: endUTC } },      // preferred
+          { createdAt: { $gte: startUTC, $lte: endUTC } }  // fallback
+        ]
+      });
+
+      // ✅ Metrics date = business day (IST start)
+      await Metrics.create({
+        date: startUTC,
+        tasksCompleted,
+        reportsSubmitted,
+        activeUsers
+      });
+
+      console.log(
+        "✅ Metrics saved for:",
+        startUTC.toISOString(),
+        { tasksCompleted, reportsSubmitted, activeUsers }
+      );
+    } catch (err) {
+      console.error("❌ Metrics CRON Failed", err);
     }
-  });
-
- 
-  const reportsSubmitted = await Report.countDocuments({
-    createdAt: {
-      $gte: startOfYesterday,
-      $lte: endOfYesterday
-    }
-  });
-
-  
-  const activeUsers = await Attendance.countDocuments({
-    date: {
-      $gte: startOfYesterday,
-      $lte: endOfYesterday
-    }
-  });
-
-  await Metrics.create({
-    date: endOfYesterday, 
-    tasksCompleted,
-    reportsSubmitted,
-    activeUsers
-  });
-
-  console.log("Metrics recorded for:", endOfYesterday.toDateString());
-},
- {
+  },
+  {
     timezone: "Asia/Kolkata"
-  });
+  }
+);
