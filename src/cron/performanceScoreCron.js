@@ -29,7 +29,7 @@ const getYesterdayISTRange = () => {
    CRON
 ========================= */
 cron.schedule(
-  "30 01 * * *",
+  "00 02 * * *",
   async () => {
     try {
       const { yesterday, dayStart, dayEnd } = getYesterdayISTRange();
