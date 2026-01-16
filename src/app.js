@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser"
 const app = express()
 
 app.use(cors({
-   origin:"https://onehumanityportal.netlify.app",
+   origin:"http://onehumanityportal.humanityfounders.com",
    credentials:true
 }))
 
