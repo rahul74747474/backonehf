@@ -5,7 +5,7 @@ import cookieParser from "cookie-parser"
 const app = express()
 
 app.use(cors({
-   origin:"http://onehumanityportal.humanityfounders.com",
+   origin:"https://onehumanityportal.humanityfounders.com",
    credentials:true
 }))
 
