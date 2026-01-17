@@ -28,14 +28,14 @@ const UserSchema = new mongoose.Schema({
         type:String,
         required:true,
     },
-    dob:{
-        type:Date,
-        default:""
-    },
-    gender:{
-        type:String,
-        default:""
-    },
+    // dob:{
+    //     type:Date,
+    //     default:""
+    // },
+    // gender:{
+    //     type:String,
+    //     default:""
+    // },
 
     phone:{
         type:String,
@@ -56,7 +56,7 @@ const UserSchema = new mongoose.Schema({
     designation:{
         name:{ 
         type:String,
-        enum:["Manager","HR","Intern","Admin","Employee"],
+        enum:["Manager","HR","Intern","Administrator","Employee"],
         default:"Employee"
         },
         Managerid:{
@@ -72,7 +72,7 @@ const UserSchema = new mongoose.Schema({
     },
     role:{
         type:String,
-        enum:["Frontend Developer","Backend Developer","Full Stack Developer","QA","UI/UX Designer","Devops"],
+        enum:["Frontend Developer","Backend Developer","Full Stack Developer","QA","UI/UX Designer","Devops","Manager"],
         default:null
     },
     status:{

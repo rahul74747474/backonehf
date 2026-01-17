@@ -266,10 +266,10 @@ const announcementMailTemplate = ({ name, title, message, type }) => {
 
 const addemployee = asynchandler(async(req,res)=>{
     try {
-        const {email,name,password,dob,gender} = req.body
+        const {email,name,password} = req.body
         
         
-        if(!email || !name || !password ||!dob ||!gender){
+        if(!email || !name || !password){
             throw new Apierror(400,"Please Enter all the Requires Fields")
         }
 
@@ -291,8 +291,6 @@ const addemployee = asynchandler(async(req,res)=>{
           email,
           password,
           status:"Onboarding",
-          dob,
-          gender,
         })
         
 
@@ -310,14 +308,14 @@ const addemployee = asynchandler(async(req,res)=>{
  const mailOptions = {
   to: email,
   from: process.env.SMTP_USER,
-  subject: "PRISM Portal Access | Your Secure Login Credentials",
+  subject: "Humanity Founders Portal Access | Your Secure Login Credentials",
   html: `
   <!DOCTYPE html>
   <html>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>PRISM Portal Access</title>
+    <title>Humanity Founders Portal Access</title>
   </head>
 
   <body style="
@@ -370,7 +368,7 @@ const addemployee = asynchandler(async(req,res)=>{
                   color:#2E2A55;
                   letter-spacing:0.4px;
                 ">
-                  Welcome to PRISM
+                  Welcome to Humanity Founders Portal
                 </h1>
 
                 <p style="
@@ -459,7 +457,7 @@ const addemployee = asynchandler(async(req,res)=>{
 
                 <!-- CTA -->
                 <div style="margin-top:30px; text-align:center;">
-                  <a href="#"
+                  <a href="https://onehumanityportal.humanityfounders.com"
                     style="
                       display:inline-block;
                       background:#5A4BFF;
@@ -471,7 +469,7 @@ const addemployee = asynchandler(async(req,res)=>{
                       font-weight:600;
                     "
                   >
-                    Access PRISM Portal
+                    Access Humanity Founders Portal 
                   </a>
                 </div>
 
@@ -493,7 +491,7 @@ const addemployee = asynchandler(async(req,res)=>{
                   line-height:1.6;
                 ">
                   Should you require assistance, please reach out to the HR team.<br/>
-                  <strong>Humanity Founders</strong> · PRISM Platform
+                  <strong>Humanity Founders</strong> · Humanity Founders Platform
                 </p>
               </td>
             </tr>
@@ -557,8 +555,8 @@ const adminlogin = asynchandler(async(req,res)=>{
 
   const options = {
     httpOnly:true,
-    secure:true,
-    sameSite:"None",
+    secure:false,
+    sameSite:"lax",
     maxAge:9*60*60*1000
   }
 
@@ -621,61 +619,74 @@ const logout = asynchandler(async(req,res)=>{
 })
 
 const assigntask = asynchandler(async (req, res) => {
-  const { employeeid, title, description, dueAt, linkedproject, priority } = req.body;
-  const user = req.user
+  let { employeeid, title, description, dueAt, linkedproject, priority } = req.body;
+  const user = req.user;
 
-  if (!employeeid || !title || !description || !dueAt || !linkedproject || !priority) {
+  // Required fields
+  if (!employeeid || !title || !description || !dueAt || !priority) {
     throw new Apierror(400, "Please fill all required fields");
   }
 
   const employee = await User.findById(employeeid);
-
   if (!employee) {
     throw new Apierror(404, "Employee not found");
   }
 
+  // 🔑 IMPORTANT: make linkedproject optional safely
+  if (!linkedproject || linkedproject === "") {
+    linkedproject = null;
+  }
+
+  // ✅ Create task
   const task = await Task.create({
     title,
     description,
     dueAt,
-    projectId: linkedproject,
+    projectId: linkedproject, // can be null
     assignedto: employeeid,
     priority,
-    history:[{
-      actionby : user.name,
-      title:"Created Task",
-      timeat:Date.now()
+    history: [{
+      actionby: user.name,
+      title: "Created Task",
+      timeat: Date.now()
     }]
   });
 
-
+  // ✅ Add task to employee
   employee.Tasks.push(task._id);
   await employee.save();
 
-  const project = await Project.findById(linkedproject)
+  // ✅ ONLY run project logic if project exists
+  if (linkedproject) {
+    const project = await Project.findById(linkedproject);
 
-  if(!project){
-    throw new Apierror(400,"Projects not found in database")
+    if (project) {
+      // push task, don't overwrite
+      if (!project.tasks) {
+        project.tasks = [];
+      }
+      project.tasks.push(task._id);
+
+      if (!project.recentActivity) {
+        project.recentActivity = [];
+      }
+
+      project.recentActivity.push({
+        title: "Created Task",
+        refs: task._id,
+        user: user.name,
+        time: Date.now()
+      });
+
+      await project.save({ validateBeforeSave: false });
+    }
   }
 
- project.tasks = task
- if(!project.recentActivity){
-  project.recentActivity = []
- }
- project.recentActivity.push({
-  title:"Created Task",
-  refs:task._id,
-  user:user.name,
-  time:Date.now()
- })
- await project.save(
-  {validateBeforeSave:false}
- )
-
-  res.status(200).json(
+  return res.status(200).json(
     new Apiresponse(200, "Task assigned successfully", task)
   );
 });
+
 
 const updatetask = asynchandler(async (req, res) => {
   const { id } = req.params;

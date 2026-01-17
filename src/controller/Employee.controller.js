@@ -26,9 +26,9 @@ const employeelogin = asynchandler(async(req,res)=>{
     throw new Apierror(404,"User not found")
   }
 
-  // if(user.designation.name !== "Employee" || user.designation.name !== "Intern"){
-  //   throw new Apierror(404,"User not Authorized to Access the portal")
-  // }
+  if(user.designation.name !== "Employee" ){
+    throw new Apierror(404,"User not Authorized to Access the portal")
+  }
 
   const passwordcorrect = await user.isPasswordCorrect(password)
   if(!passwordcorrect){
@@ -42,8 +42,8 @@ const employeelogin = asynchandler(async(req,res)=>{
 
   const options = {
     httpOnly:true,
-    secure:true,
-    sameSite:"None",
+    secure:false,
+    sameSite:"lax",
     maxAge:9*60*60*1000
   }
 
@@ -79,10 +79,25 @@ const taskcompleted = asynchandler(async(req,res)=>{
   }
 
   const task = await Task.findById(taskid)
-  const project = await Project.findById(task.projectId)
+  if(project){
+    
+  }
+  if(task.projectId){
+     const project = await Project.findById(task.projectId)
     if(!project){
       throw new Apierror(404,"No Project Found")
     }
+
+    project.recentActivity.push({
+    title:"Completed the task",
+    refs:taskid,
+    user:user.name,
+    time:Date.now()
+  })
+
+  await project.save({validateBeforeSave:false})
+  
+  }
   
 
   if(!task){
@@ -94,14 +109,7 @@ const taskcompleted = asynchandler(async(req,res)=>{
 
   await task.save({validateBeforeSave:false})
 
-  project.recentActivity.push({
-    title:"Completed the task",
-    refs:taskid,
-    user:user.name,
-    time:Date.now()
-  })
-
-  await project.save({validateBeforeSave:false})
+  
 
   const employee = await User.findById(user._id)
   if(!employee){
@@ -265,11 +273,22 @@ export const uploadTaskAttachment = asynchandler(async (req, res) => {
     throw new Apierror(404, "Task not found");
   }
 
-  const project = await Project.findById(task.projectId)
+  if(task.projectId){
+     const project = await Project.findById(task.projectId)
     if(!project){
       throw new Apierror(404,"No Project Found")
     }
+     project.recentActivity.push({
+    title:`Added Attachment ${req.file.originalname}`,
+    refs:task._id,
+    user:user.name,
+    time:Date.now()
+  })
 
+  await project.save({validateBeforeSave:false})
+
+  }
+ 
   // Upload to Cloudinary
   const uploaded = await uploadToCloudinary(
     req.file.buffer,
@@ -297,14 +316,7 @@ export const uploadTaskAttachment = asynchandler(async (req, res) => {
 
   await employee.save({ validateBeforeSave: false });
 
-  project.recentActivity.push({
-    title:`Added Attachment ${req.file.originalname}`,
-    refs:task._id,
-    user:user.name,
-    time:Date.now()
-  })
-
-  await project.save({validateBeforeSave:false})
+ 
 
 
   res.status(201).json(
@@ -324,10 +336,21 @@ const sendcomment = asynchandler(async(req,res)=>{
 
   const task = await Task.findById(taskid)
   const user = await User.findById(userid)
-  const project = await Project.findById(task.projectId)
+  if(task.projectId){
+    const project = await Project.findById(task.projectId)
     if(!project){
       throw new Apierror(404,"No Project Found")
     }
+     project.recentActivity.push({
+    title:"Commented on",
+    refs:task._id,
+    user:user.name,
+    time:Date.now()
+  })
+
+  await project.save({validateBeforeSave:false})
+  }
+  
 
   if(!task || !user){
     throw new Apierror(400,"Task or User not found")
@@ -353,14 +376,7 @@ const sendcomment = asynchandler(async(req,res)=>{
   })
 
   await user.save({ validateBeforeSave: false });
-  project.recentActivity.push({
-    title:"Commented on",
-    refs:task._id,
-    user:user.name,
-    time:Date.now()
-  })
-
-  await project.save({validateBeforeSave:false})
+ 
 
 
   res.status(200)
@@ -377,10 +393,21 @@ const completetask = asynchandler(async(req,res)=>{
 
   const task = await Task.findById(taskid)
   const user = await User.findById(userid)
-  const project = await Project.findById(task.projectId)
+  if(task.projectId){
+     const project = await Project.findById(task.projectId)
     if(!project){
       throw new Apierror(404,"No Project Found")
     }
+    project.recentActivity.push({
+    title:"Completed Task",
+    refs:task._id,
+    user:user.name,
+    time:Date.now()
+  })
+
+  await project.save({validateBeforeSave:false})
+  }
+ 
 
   if(!task || !user){
     throw new Apierror(400,"Task or User not found")
@@ -402,14 +429,7 @@ const completetask = asynchandler(async(req,res)=>{
   })
 
   await user.save({ validateBeforeSave: false });
-  project.recentActivity.push({
-    title:"Completed Task",
-    refs:task._id,
-    user:user.name,
-    time:Date.now()
-  })
-
-  await project.save({validateBeforeSave:false})
+  
 
   res.status(200)
   .json(new Apiresponse(201,"Task Completed Successfully",task))
@@ -425,10 +445,21 @@ const reviewtask = asynchandler(async(req,res)=>{
 
   const task = await Task.findById(taskid)
   const user = await User.findById(userid)
-  const project = await Project.findById(task.projectId)
+  if(task.projectId){
+    const project = await Project.findById(task.projectId)
     if(!project){
       throw new Apierror(404,"No Project Found")
     }
+     project.recentActivity.push({
+    title:"Pushed the Task for Review",
+    refs:task._id,
+    user:user.name,
+    time:Date.now()
+  })
+
+  await project.save({validateBeforeSave:false})
+  }
+  
 
   if(!task || !user){
     throw new Apierror(400,"Task or User not found")
@@ -450,14 +481,7 @@ const reviewtask = asynchandler(async(req,res)=>{
 
   await user.save({ validateBeforeSave: false });
 
-  project.recentActivity.push({
-    title:"Pushed the Task for Review",
-    refs:task._id,
-    user:user.name,
-    time:Date.now()
-  })
-
-  await project.save({validateBeforeSave:false})
+ 
 
 
   res.status(200)
@@ -613,11 +637,22 @@ const updatetask = asynchandler(async (req, res) => {
   if (!task) {
     throw new Apierror(404, "No task found with this id");
   }
-  const project = await Project.findById(task.projectId)
+  if(task.projectId){
+   const project = await Project.findById(task.projectId)
     if(!project){
       throw new Apierror(404,"No Project Found")
     }
+     project.recentActivity.push({
+    title:`Task Status Updated to ${status}`,
+    refs:task._id,
+    user:updatedby.name,
+    time:Date.now()
+  })
 
+  await project.save({validateBeforeSave:false})
+
+  }
+  
   if(task.status === "Completed" && status !== "Completed" && status){
       task.status = status;
       task.completedAt = null
@@ -661,14 +696,7 @@ const updatetask = asynchandler(async (req, res) => {
          time:Date.now()
       })
 
-     project.recentActivity.push({
-    title:`Task Status Updated to ${status}`,
-    refs:task._id,
-    user:updatedby.name,
-    time:Date.now()
-  })
-
-  await project.save({validateBeforeSave:false})
+    
   const updatedtask = await task.save({ validateBeforeSave: false });
   await updatedby.save({validateBeforeSave:false})
 
@@ -686,9 +714,22 @@ const addsubtask = asynchandler(async(req,res)=>{
 
    const task = await Task.findById(relatedtask)
    const employee = await User.findById(user._id)
-   const project = await Project.findById(task.projectId)
+   if(task.projectId){
+     const project = await Project.findById(task.projectId)
+        project.recentActivity.push({
+    title:`Subtask Added for Task`,
+    refs:task._id,
+    user:employee.name,
+    time:Date.now()
+  })
 
-   if(!task || !employee || !project){
+  await project.save({validateBeforeSave:false})
+
+
+   }
+   
+
+   if(!task || !employee ){
     throw new Apierror("Not found in database")
    }
 
@@ -712,15 +753,7 @@ const addsubtask = asynchandler(async(req,res)=>{
 
     await task.save({validateBeforeSave:false})
 
-       project.recentActivity.push({
-    title:`Subtask Added for Task`,
-    refs:task._id,
-    user:employee.name,
-    time:Date.now()
-  })
-
-  await project.save({validateBeforeSave:false})
-
+    
    employee.recentActivity.push({
          name :`Added Subtask for Task`,
          refs:task._id,

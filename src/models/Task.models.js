@@ -3,7 +3,8 @@ import mongoose from "mongoose"
 const TaskSchema = mongoose.Schema({
     projectId:{
         type:mongoose.Schema.Types.ObjectId,
-        ref:"Project"
+        ref:"Project",
+        default:null
     },
     title:{
         type:String,
